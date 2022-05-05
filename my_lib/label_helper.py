@@ -56,6 +56,35 @@ class MeshLabelerHelper:
 
         return label
 
+    @staticmethod
+    def calc_face_label_ious(data1: Dict[str, Any], data2: Dict[str, Any]) -> Dict[str, float]:
+        """
+        Calculate iou between the corresponding face shape of the two data dictionaries.
+        :param data1:
+        :param data2:
+        :return:
+            a dict of (label, iou) pairs.
+        """
+        # get face shapes
+        face_insts1: Dict[str, set] = {sh['label']: set(sh['face_ids']) for sh in data1['shapes'] if sh['shape_type'] == 'face'}
+        face_insts2: Dict[str, set] = {sh['label']: set(sh['face_ids']) for sh in data2['shapes'] if sh['shape_type'] == 'face'}
+
+        # get unique face labels
+        face_labels1 = set(face_insts1.keys())
+        face_labels2 = set(face_insts2.keys())
+
+        inter_face_labels = face_labels1.intersection(face_labels2)
+        union_face_labels = face_labels1.union(face_labels2)
+        label_iou_dict = {label: 0. for label in union_face_labels.difference(inter_face_labels)}
+
+        # calc iou
+        for label in inter_face_labels:
+            inter = len(face_insts1[label].intersection(face_insts2[label]))
+            union = len(face_insts1[label].union(face_insts2[label]))
+            label_iou_dict[label] = (inter + 1e-7) / (union + 1e-7)
+
+        return label_iou_dict
+
 
 
 class LabelmeHelper:
