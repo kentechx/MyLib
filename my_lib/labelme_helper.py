@@ -6,6 +6,57 @@ import json
 from typing import List, Dict, Any
 
 
+class MeshLabelerHelper:
+    _shape_keys = ["shape_type", "label", "metadata", "points", "face_ids"]
+    _shape_type_keys = ["face", "landmark", "vertex"]
+
+    @staticmethod
+    def read_json_data(fp) -> Dict[str, Any]:
+        return json.load(open(fp, 'r', encoding='utf-8'))
+
+    @staticmethod
+    def write_json_data(data: Dict[str, Any], fp):
+        json.dump(data, open(fp, 'w', encoding='utf-8'))
+
+    @staticmethod
+    def save_face_labels(face_labels: np.ndarray, fp: str):
+        data = MeshLabelerHelper.get_json_data_from_face_labels(face_labels)
+        MeshLabelerHelper.write_json_data(data, fp)
+
+    @staticmethod
+    def get_face_labels(data: Dict[str, Any]) -> np.ndarray:
+        if 'num_faces' not in data:
+            face_shapes = [sh for sh in data['shapes'] if sh['shape_type'] == 'face']
+            n_faces = 1 if len(face_shapes) == 0 else max(max(sh['face_ids']) for sh in face_shapes) + 1
+        else:
+            n_faces = data['num_faces']
+
+        labels = np.zeros(n_faces)
+        for sh in data['shapes']:
+            if sh['shape_type'] == 'face':
+                labels[sh['face_ids']] = int(sh['label'])
+        return labels
+
+    @staticmethod
+    def get_json_data_from_face_labels(face_labels: np.ndarray) -> Dict[str, Any]:
+        label = {
+            "metadata": [],
+            "num_faces": len(face_labels),
+        }
+        shapes = []
+        for l in np.unique(face_labels):
+            if l == 0:
+                continue
+
+            s = {'label': str(l), 'metadata': {}, "shape_type": "face", "face_ids": np.where(face_labels == l)[0].tolist()}
+            shapes.append(s)
+
+        label['shapes'] = shapes
+
+        return label
+
+
+
 class LabelmeHelper:
     _shape_keys = ['label', 'points', 'group_id', 'shape_type', 'flags']
     _shape_type_keys = ['rectangle', 'polygon']
