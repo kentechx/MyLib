@@ -26,6 +26,11 @@ class MeshLabelerHelper:
 
     @staticmethod
     def get_face_labels(data: Dict[str, Any]) -> np.ndarray:
+        """
+        :param data:
+        :return:
+            face_labels: (n, ), int
+        """
         if 'num_faces' not in data:
             face_shapes = [sh for sh in data['shapes'] if sh['shape_type'] == 'face']
             n_faces = 1 if len(face_shapes) == 0 else max(max(sh['face_ids']) for sh in face_shapes) + 1
@@ -37,6 +42,15 @@ class MeshLabelerHelper:
             if sh['shape_type'] == 'face':
                 labels[sh['face_ids']] = int(sh['label'])
         return labels
+
+    @staticmethod
+    def get_face_instances(data: Dict[str, Any]) -> Dict[str, np.ndarray]:
+        """
+        :param data:
+        :return:
+            face_instances: a dict of face instance labels. Keys are labels and values are face ids.
+        """
+        return {sh['label']: sh['face_ids'] for sh in data['shapes'] if sh['shape_type'] == 'face'}
 
     @staticmethod
     def get_json_data_from_face_labels(face_labels: np.ndarray) -> Dict[str, Any]:
