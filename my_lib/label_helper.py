@@ -37,7 +37,7 @@ class MeshLabelerHelper:
         else:
             n_faces = data['num_faces']
 
-        labels = np.zeros(n_faces)
+        labels = np.zeros(n_faces, dtype=int)
         for sh in data['shapes']:
             if sh['shape_type'] == 'face':
                 labels[sh['face_ids']] = int(sh['label'])
