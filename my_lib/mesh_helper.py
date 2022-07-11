@@ -1,3 +1,4 @@
+import copy
 import numpy as np
 import trimesh
 
@@ -43,5 +44,27 @@ class MeshHelper:
         o3d.visualization.draw_geometries([m])
 
     @staticmethod
-    def visualize_switch():
-        pass
+    def visualize_switch(m1: trimesh.Trimesh, labels1: np.ndarray = None, m2: trimesh.Trimesh = None,
+                         labels2: np.ndarray = None):
+        if m2 is None:
+            m2 = m1
+        m1 = MeshHelper.create_face_colored_mesh(m1, labels1)
+        m2 = MeshHelper.create_face_colored_mesh(m2, labels2)
+
+        meshes = [m1, m2]
+        vis = o3d.visualization.VisualizerWithKeyCallback()
+        vis.create_window()
+        i = 0
+        vis.add_geometry(meshes[i])
+        vis.update_geometry(meshes[i])
+
+        def switch(vis: o3d.visualization.VisualizerWithKeyCallback):
+            nonlocal i, meshes
+            vis.remove_geometry(meshes[i], False)
+            i = 1 - i
+            vis.add_geometry(meshes[i], False)
+            vis.update_geometry(meshes[i])
+
+        vis.register_key_callback(ord(" "), switch)
+        vis.run()
+        vis.destroy_window()
