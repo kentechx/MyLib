@@ -47,6 +47,14 @@ class MeshHelper:
         o3d.visualization.draw_geometries([m])
 
     @staticmethod
+    def visualize_faces(m: trimesh.Trimesh, fids: np.ndarray = None):
+        ls = np.zeros(len(m.faces), dtype=int)
+        if fids is not None and len(fids) > 0:
+            ls[fids] = 1
+        m = MeshHelper.create_face_colored_mesh(m, ls)
+        o3d.visualization.draw_geometries([m])
+
+    @staticmethod
     def visualize_switch(m1: trimesh.Trimesh, labels1: np.ndarray = None, m2: trimesh.Trimesh = None,
                          labels2: np.ndarray = None):
         if m2 is None:
