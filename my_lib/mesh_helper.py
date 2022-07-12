@@ -34,6 +34,9 @@ class MeshHelper:
                 if l in color_map:
                     idx = np.where(labels == l)[0]
                     v_colors[fs[idx].reshape(-1)] = np.array(color_map[l]) / 255.
+                else:
+                    idx = np.where(labels == l)[0]
+                    v_colors[fs[idx].reshape(-1)] = np.array(list(color_map.values())[l % len(color_map)]) / 255.
 
             m.vertex_colors = o3d.utility.Vector3dVector(v_colors)
         return m
