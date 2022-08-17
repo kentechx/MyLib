@@ -1,6 +1,8 @@
 import copy
 import numpy as np
 import trimesh
+import trimesh.parent
+from typing import List, Tuple, Union
 
 try:
     import open3d as o3d
@@ -79,3 +81,20 @@ class MeshHelper:
         vis.register_key_callback(ord(" "), switch)
         vis.run()
         vis.destroy_window()
+
+    @staticmethod
+    def visualize_geos(geos: List[trimesh.parent.Geometry3D]):
+        o3d_geos = []
+        for g in geos:
+            if isinstance(g, trimesh.Trimesh):
+                m = o3d.geometry.TriangleMesh(o3d.utility.Vector3dVector(g.vertices),
+                                              o3d.utility.Vector3iVector(g.faces))
+                m.compute_vertex_normals()
+                o3d_geos.append(m)
+            elif isinstance(g, trimesh.PointCloud):
+                pcd = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(np.asarray(g.vertices)))
+                o3d_geos.append(pcd)
+            else:
+                raise ValueError("Unsupported geometry type: {}".format(type(g)))
+
+        o3d.visualization.draw_geometries(o3d_geos)
