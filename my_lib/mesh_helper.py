@@ -94,6 +94,10 @@ class MeshHelper:
             elif isinstance(g, trimesh.PointCloud):
                 pcd = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(np.asarray(g.vertices)))
                 o3d_geos.append(pcd)
+            elif isinstance(g, trimesh.path.Path3D):
+                m = o3d.geometry.LineSet(o3d.utility.Vector3dVector(np.array(g.vertices)),
+                                         o3d.utility.Vector2iVector(np.array(g.vertex_nodes)))
+                o3d_geos.append(m)
             else:
                 raise ValueError("Unsupported geometry type: {}".format(type(g)))
 
