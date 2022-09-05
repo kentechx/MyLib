@@ -44,13 +44,14 @@ def laplacian_smooth(vs: np.ndarray, fs: np.ndarray, lambs: Union[np.ndarray, fl
     :param implicit: If using implicit laplacian smooth. If true, solve (I - lambs * L)^n_iter * out_vs = vs,
             where L is the normalized laplacian matrix (negative diagonal).
     """
+    _epsilon = 1e-7
     if cot:
         L = igl.cotmatrix(vs, fs)
-        L = -scipy.sparse.diags(1. / L.diagonal()) @ L
+        L = -scipy.sparse.diags(1. / (L.diagonal() + _epsilon)) @ L
     else:
         L = igl.adjacency_matrix(fs)
         L = scipy.sparse.diags(-L.sum(1).A1) + L
-        L = -scipy.sparse.diags(1. / L.diagonal()) @ L
+        L = -scipy.sparse.diags(1. / (L.diagonal() + _epsilon)) @ L
 
     return solve_laplacian_smooth(vs, L, lambs, n_iter, implicit)
 
