@@ -197,8 +197,9 @@ def remove_non_manifold(vs: np.ndarray, fs: np.ndarray):
         m.remove_vertices_by_index(vids)
         vids = m.get_non_manifold_vertices()
 
-    # fix normals
-    return np.asarray(m.vertices), np.asarray(m.triangles)
+    # orient triangles
+    out_fs, c = igl.bfs_orient(np.asarray(m.triangles))
+    return np.asarray(m.vertices), out_fs
 
 
 def deform_arap_igl(vertices: np.ndarray, faces: np.ndarray, handle_id: np.ndarray, handle_co: np.ndarray):
