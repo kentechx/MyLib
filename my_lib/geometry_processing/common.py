@@ -198,9 +198,7 @@ def remove_non_manifold(vs: np.ndarray, fs: np.ndarray):
         vids = m.get_non_manifold_vertices()
 
     # fix normals
-    _m = trimesh.Trimesh(np.asarray(m.vertices), np.asarray(m.triangles))
-    _m.fix_normals()
-    return np.asarray(_m.vertices), np.asarray(_m.faces)
+    return np.asarray(m.vertices), np.asarray(m.triangles)
 
 
 def deform_arap_igl(vertices: np.ndarray, faces: np.ndarray, handle_id: np.ndarray, handle_co: np.ndarray):
