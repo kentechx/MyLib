@@ -6,6 +6,12 @@ import scipy.sparse
 import scipy.sparse.linalg
 from typing import Tuple, List, Union
 
+_epsilon = 1e-7
+
+
+def o3d_to_trimesh(o3d_m, process=True) -> trimesh.Trimesh:
+    return trimesh.Trimesh(vertices=np.asarray(o3d_m.vertices), faces=np.asarray(o3d_m.triangles), process=process)
+
 
 def grid_triangulation(vids: np.ndarray) -> np.ndarray:
     """
@@ -44,7 +50,6 @@ def laplacian_smooth(vs: np.ndarray, fs: np.ndarray, lambs: Union[np.ndarray, fl
     :param implicit: If using implicit laplacian smooth. If true, solve (I - lambs * L)^n_iter * out_vs = vs,
             where L is the normalized laplacian matrix (negative diagonal).
     """
-    _epsilon = 1e-7
     if cot:
         L = igl.cotmatrix(vs, fs)
         L = -scipy.sparse.diags(1. / (L.diagonal() + _epsilon)) @ L
@@ -109,7 +114,7 @@ def smooth_line(points: np.ndarray, pid_seq: List[int], lambs: Union[np.ndarray,
     data = np.full(len(row), -0.5)
     L = scipy.sparse.csr_matrix((data, (row, col)), shape=(len(points), len(points)))
     L = L + scipy.sparse.eye(len(points))
-    L = -scipy.sparse.diags(1. / L.diagonal()) @ L
+    L = -scipy.sparse.diags(1. / (L.diagonal() + _epsilon)) @ L
 
     return solve_laplacian_smooth(points, L, lambs, n_iter, implicit)
 
@@ -142,6 +147,60 @@ def solve_laplacian_smooth(v_attrs: np.ndarray, L: scipy.sparse.csr_matrix,
             v_attrs = scipy.sparse.linalg.spsolve(AA, v_attrs)
 
     return v_attrs
+
+
+def remove_low_valence_faces(vs: np.ndarray, fs: np.ndarray, remove_unreferenced: bool = True) -> [np.ndarray,
+                                                                                                   np.ndarray]:
+    """
+    Remove faces whose valences <= 1, i.e. at least two edges of the face are border edges.
+    :return:
+        out_vs:
+        out_fs:
+    """
+    # remove faces whose all vertices are on the boundary
+    out_vs = vs.copy()
+    out_fs = fs.copy()
+    is_boundary = np.zeros(len(out_vs), dtype=np.bool)
+    b_vids = np.concatenate(igl.all_boundary_loop(out_fs))
+    if len(b_vids) == 0:
+        return out_vs, out_fs
+
+    is_boundary[b_vids] = True
+    invalid_fids = np.where(np.all(is_boundary[out_fs], axis=1))[0]
+    if len(invalid_fids) > 0:
+        out_fs = out_fs[np.setdiff1d(np.arange(len(out_fs)), invalid_fids)]
+
+    if remove_unreferenced:
+        out_vs, out_fs, _, _ = igl.remove_unreferenced(out_vs, out_fs)
+
+    return out_vs, out_fs
+
+
+def remove_non_manifold(vs: np.ndarray, fs: np.ndarray):
+    import open3d as o3d
+    vs = vs.copy()
+    fs = fs.copy()
+    m = o3d.geometry.TriangleMesh(o3d.utility.Vector3dVector(vs),
+                                  o3d.utility.Vector3iVector(fs))
+
+    # m: o3d.geometry.TriangleMesh = m.remove_duplicated_vertices()
+    # m: o3d.geometry.TriangleMesh = m.remove_duplicated_triangles()
+    # m: o3d.geometry.TriangleMesh = m.remove_degenerate_triangles()
+    m: o3d.geometry.TriangleMesh = m.remove_non_manifold_edges()
+    m: o3d.geometry.TriangleMesh = m.remove_unreferenced_vertices()
+
+    vids = m.get_non_manifold_vertices()
+    for _ in range(20):
+        if len(vids) == 0:
+            break
+
+        m.remove_vertices_by_index(vids)
+        vids = m.get_non_manifold_vertices()
+
+    # fix normals
+    _m = trimesh.Trimesh(np.asarray(m.vertices), np.asarray(m.triangles))
+    _m.fix_normals()
+    return np.asarray(_m.vertices), np.asarray(_m.faces)
 
 
 def deform_arap_igl(vertices: np.ndarray, faces: np.ndarray, handle_id: np.ndarray, handle_co: np.ndarray):
