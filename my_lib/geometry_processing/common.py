@@ -47,7 +47,7 @@ def grid_triangulation(vids: np.ndarray) -> np.ndarray:
 
 
 def laplacian_smooth(vs: np.ndarray, fs: np.ndarray, lambs: Union[np.ndarray, float] = 1., n_iter: int = 1,
-                     cot: bool = True, implicit: bool = False) -> np.ndarray:
+                     cot: bool = True, implicit: bool = False, boundary_preserve=True) -> np.ndarray:
     """
     out_vs = (I + lambs * L)^n_iter * vs, where L is the normalized laplacian matrix (negative diagonal).
     :param lambs: Lambdas in the range [0., 1.]. The vertices will not change if the corresponding lambdas are 0.
@@ -63,11 +63,19 @@ def laplacian_smooth(vs: np.ndarray, fs: np.ndarray, lambs: Union[np.ndarray, fl
         L = scipy.sparse.diags(-L.sum(1).A1) + L
         L = -scipy.sparse.diags(1. / (L.diagonal() + _epsilon)) @ L
 
+    if boundary_preserve:
+        b = igl.all_boundary_loop(fs)
+        if len(b) > 0:
+            b = np.concatenate(b)
+            if isinstance(lambs, float):
+                lambs = np.ones(len(vs)) * lambs
+            lambs[b] = 0.
+
     return solve_laplacian_smooth(vs, L, lambs, n_iter, implicit)
 
 
 def laplacian_smooth_selected(vs: np.ndarray, fs: np.ndarray, vids: np.ndarray, lamb: float = 1., n_iter: int = 1,
-                              cot: bool = True, implicit: bool = False) -> np.ndarray:
+                              cot: bool = True, implicit: bool = False, boundary_preserve=True) -> np.ndarray:
     """
     Do laplacian smoothing on the selected vertices.
     """
@@ -80,7 +88,7 @@ def laplacian_smooth_selected(vs: np.ndarray, fs: np.ndarray, vids: np.ndarray, 
     sub_vs, sub_fs, IM, sub_vids = igl.remove_unreferenced(vs, fs[sub_fids])
 
     out_vs = vs.copy()
-    out_vs[sub_vids] = laplacian_smooth(sub_vs, sub_fs, lambs[sub_vids], n_iter, cot, implicit)
+    out_vs[sub_vids] = laplacian_smooth(sub_vs, sub_fs, lambs[sub_vids], n_iter, cot, implicit, boundary_preserve)
 
     return out_vs
 
