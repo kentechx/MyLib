@@ -21,12 +21,18 @@ class MeshHelper:
         return new_vs, new_fs
 
     @staticmethod
-    def create_face_colored_mesh(m: trimesh.Trimesh, labels: np.ndarray = None):
-        vs, fs = MeshHelper.create_triangle_soup(np.asarray(m.vertices), np.asarray(m.faces))
-
+    def create_face_colored_mesh(m: Union[trimesh.Trimesh, o3d.geometry.TriangleMesh], labels: np.ndarray = None):
         # O3D MESH
-        m = o3d.geometry.TriangleMesh(o3d.utility.Vector3dVector(vs),
-                                      o3d.utility.Vector3iVector(fs))
+        if isinstance(m, trimesh.Trimesh):
+            m = o3d.geometry.TriangleMesh(o3d.utility.Vector3dVector(m.vertices),
+                                          o3d.utility.Vector3iVector(m.faces))
+        else:
+            m = o3d.geometry.TriangleMesh(m)
+
+        vs, fs = MeshHelper.create_triangle_soup(np.asarray(m.vertices), np.asarray(m.triangles))
+        m.vertices = o3d.utility.Vector3dVector(vs)
+        m.triangles = o3d.utility.Vector3iVector(fs)
+
         m.compute_vertex_normals()
         if labels is not None:
             v_colors = np.full((len(vs), 3), 0.7, dtype=np.float32)
@@ -44,7 +50,7 @@ class MeshHelper:
         return m
 
     @staticmethod
-    def visualize(m: trimesh.Trimesh, labels: np.ndarray = None):
+    def visualize(m: Union[trimesh.Trimesh, o3d.geometry.TriangleMesh], labels: np.ndarray = None):
         m = MeshHelper.create_face_colored_mesh(m, labels)
         o3d.visualization.draw_geometries([m])
 
@@ -83,7 +89,7 @@ class MeshHelper:
         vis.destroy_window()
 
     @staticmethod
-    def visualize_geos(geos: List[trimesh.parent.Geometry3D]):
+    def visualize_geos(geos: List[Union[trimesh.parent.Geometry3D, o3d.geometry.Geometry3D]]):
         o3d_geos = []
         for g in geos:
             if isinstance(g, trimesh.Trimesh):
@@ -98,6 +104,8 @@ class MeshHelper:
                 m = o3d.geometry.LineSet(o3d.utility.Vector3dVector(np.array(g.vertices)),
                                          o3d.utility.Vector2iVector(np.array(g.vertex_nodes)))
                 o3d_geos.append(m)
+            elif isinstance(g, o3d.geometry.Geometry3D):
+                o3d_geos.append(g)
             else:
                 raise ValueError("Unsupported geometry type: {}".format(type(g)))
 
