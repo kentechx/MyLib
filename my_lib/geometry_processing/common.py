@@ -1,3 +1,8 @@
+"""
+@author: shenkaidi
+@date: 20220901
+"""
+
 import numpy as np
 import trimesh
 import igl
@@ -91,12 +96,18 @@ def smooth_boundary(vs: np.ndarray, fs: np.ndarray, vids_included: List = None, 
     if vids_included is not None:
         vids_included = np.asarray(vids_included)
     out_vs = vs.copy()
+    vv_adj = igl.adjacency_list(fs)
     for boundary in igl.all_boundary_loop(fs):
         if vids_included is not None and not np.any(np.in1d(boundary, vids_included)):
             continue
 
         pts = out_vs[boundary]
-        out_vs[boundary] = smooth_line(pts, list(range(len(pts))) + [0], lamb, n_iter, implicit)
+        _vids = list(range(len(pts)))
+        if boundary[-1] in vv_adj[0]:
+            _vids += [0]
+
+        if len(_vids) > 3:
+            out_vs[boundary] = smooth_line(pts, _vids, lamb, n_iter, implicit)
 
     return out_vs
 
@@ -116,6 +127,12 @@ def smooth_line(points: np.ndarray, pid_seq: List[int], lambs: Union[np.ndarray,
     L = L + scipy.sparse.eye(len(points))
     L = -scipy.sparse.diags(1. / (L.diagonal() + _epsilon)) @ L
 
+    if pid_seq[-1] != pid_seq[0]:
+        # if the point sequence is not a loop, then fix the end points
+        if isinstance(lambs, float):
+            lambs = np.full(len(points), lambs)
+        lambs[pid_seq[0]] = 0.
+        lambs[pid_seq[-1]] = 0.
     return solve_laplacian_smooth(points, L, lambs, n_iter, implicit)
 
 
