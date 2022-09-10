@@ -186,7 +186,11 @@ def remove_low_valence_faces(vs: np.ndarray, fs: np.ndarray, remove_unreferenced
     out_vs = vs.copy()
     out_fs = fs.copy()
     is_boundary = np.zeros(len(out_vs), dtype=np.bool)
-    b_vids = np.concatenate(igl.all_boundary_loop(out_fs))
+    b = igl.all_boundary_loop(out_fs)
+    if len(b) == 0:
+        return out_vs, out_fs
+
+    b_vids = np.concatenate(b)
     if len(b_vids) == 0:
         return out_vs, out_fs
 
