@@ -46,6 +46,25 @@ def grid_triangulation(vids: np.ndarray) -> np.ndarray:
     return faces
 
 
+def fan_triangulation(vids: np.ndarray) -> np.ndarray:
+    """
+        3  2  1
+        *  *  *
+        \  |  /
+         \ | /
+           *
+           0
+    faces: [[0, 1, 2], [0, 2, 3], ...]
+    :param vids: (n, ), int, the first of which is the start vertex.
+    """
+    svid = vids[0]
+    fids = np.zeros((len(vids) - 2, 3), dtype=int)
+    fids[:, 0] = svid
+    fids[:, 1] = vids[1:-1]
+    fids[:, 2] = vids[2:]
+    return fids
+
+
 def laplacian_smooth(vs: np.ndarray, fs: np.ndarray, lambs: Union[np.ndarray, float] = 1., n_iter: int = 1,
                      cot: bool = True, implicit: bool = False, boundary_preserve=True) -> np.ndarray:
     """
