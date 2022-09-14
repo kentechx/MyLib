@@ -76,6 +76,12 @@ def laplacian_smooth(vs: np.ndarray, fs: np.ndarray, lambs: Union[np.ndarray, fl
     """
     if cot:
         L = igl.cotmatrix(vs, fs)
+        if np.any(np.isnan(L.data)):
+            L.data[np.isnan(L.data)] = 0.
+        if np.any(np.isinf(L.data)):
+            L.data[np.isinf(L.data)] = 1e6
+        if not np.allclose(L.sum(1), 0.):
+            L = L - scipy.sparse.diags(L.sum(1).A1)
         L = -scipy.sparse.diags(1. / (L.diagonal() + _epsilon)) @ L
     else:
         L = igl.adjacency_matrix(fs)
