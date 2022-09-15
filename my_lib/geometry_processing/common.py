@@ -11,7 +11,7 @@ import scipy.sparse
 import scipy.sparse.linalg
 from typing import Tuple, List, Union
 
-_epsilon = 1e-7
+_epsilon = 1e-16
 
 
 def o3d_to_trimesh(o3d_m, process=True) -> trimesh.Trimesh:
@@ -65,6 +65,31 @@ def fan_triangulation(vids: np.ndarray) -> np.ndarray:
     return fids
 
 
+def uniform_laplacian_matrix(fs: np.ndarray, normalize: bool = False) -> scipy.sparse.csr_matrix:
+    """
+    L = D - A. (positive diagonal)
+    """
+    A = igl.adjacency_matrix(fs)
+    L = scipy.sparse.diags(A.sum(1).A1) - A
+    if normalize:
+        L = scipy.sparse.diags(1. / (L.diagonal() + _epsilon)) @ L
+    return L
+
+
+def cot_laplacian_matrix(vs: np.ndarray, fs: np.ndarray, normalize: bool = False) -> scipy.sparse.csr_matrix:
+    L = -igl.cotmatrix(vs, fs)
+    if np.any(np.isnan(L.data)):
+        L.data[np.isnan(L.data)] = 0.
+    if np.any(np.isinf(L.data)):
+        L.data[np.isinf(L.data)] = 1e6
+    if not np.allclose(L.sum(1), 0.):
+        L = L - scipy.sparse.diags(L.sum(1).A1)
+
+    if normalize:
+        L = scipy.sparse.diags(1. / (L.diagonal() + _epsilon)) @ L
+    return L
+
+
 def laplacian_smooth(vs: np.ndarray, fs: np.ndarray, lambs: Union[np.ndarray, float] = 1., n_iter: int = 1,
                      cot: bool = True, implicit: bool = False, boundary_preserve=True) -> np.ndarray:
     """
@@ -75,18 +100,9 @@ def laplacian_smooth(vs: np.ndarray, fs: np.ndarray, lambs: Union[np.ndarray, fl
             where L is the normalized laplacian matrix (negative diagonal).
     """
     if cot:
-        L = igl.cotmatrix(vs, fs)
-        if np.any(np.isnan(L.data)):
-            L.data[np.isnan(L.data)] = 0.
-        if np.any(np.isinf(L.data)):
-            L.data[np.isinf(L.data)] = 1e6
-        if not np.allclose(L.sum(1), 0.):
-            L = L - scipy.sparse.diags(L.sum(1).A1)
-        L = -scipy.sparse.diags(1. / (L.diagonal() + _epsilon)) @ L
+        L = -cot_laplacian_matrix(vs, fs, normalize=True)
     else:
-        L = igl.adjacency_matrix(fs)
-        L = scipy.sparse.diags(-L.sum(1).A1) + L
-        L = -scipy.sparse.diags(1. / (L.diagonal() + _epsilon)) @ L
+        L = uniform_laplacian_matrix(fs, normalize=True)
 
     if boundary_preserve:
         b = igl.all_boundary_loop(fs)
