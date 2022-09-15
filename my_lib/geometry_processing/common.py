@@ -284,3 +284,43 @@ def deform_arap_igl(vertices: np.ndarray, faces: np.ndarray, handle_id: np.ndarr
     arap = igl.ARAP(vertices, faces, 3, handle_id)
     out_vertices = arap.solve(handle_co, vertices)
     return out_vertices
+
+
+def filter_mhb(v_attrs: np.ndarray, basis: np.ndarray) -> np.ndarray:
+    """
+    Filter with manifold harmonics basis (MHB).
+    :param v_attrs:
+    :param basis: (n, m), m basis vectors
+    :return:
+    """
+    shape = v_attrs.shape
+    if len(v_attrs.shape) == 1:
+        v_attrs = v_attrs[:, None]  # (n, 1)
+
+    out = np.zeros_like(v_attrs)
+    for i in range(v_attrs.shape[1]):
+        out[:, i] = np.sum((basis.T @ v_attrs[:, i]) * basis, axis=1)
+
+    out = out.reshape(shape)
+    return out
+
+
+def manifold_harmonics_basis(vs: np.ndarray, fs: np.ndarray, cot: bool = True):
+    """
+    Calculate the manifold harmonics basis (MHB) of a mesh.
+    :return:
+        w: frequencies of bases
+        v: basis vectors
+    """
+    if cot:
+        L = cot_laplacian_matrix(vs, fs, normalize=False).toarray()
+    else:
+        L = uniform_laplacian_matrix(fs, normalize=False).toarray()
+
+    w, v = manifold_harmonics_basis_laplacian(L)
+    return w, v
+
+
+def manifold_harmonics_basis_laplacian(L: np.ndarray):
+    w, v = np.linalg.eigh(L)
+    return w, v
