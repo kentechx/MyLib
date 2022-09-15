@@ -102,7 +102,7 @@ def laplacian_smooth(vs: np.ndarray, fs: np.ndarray, lambs: Union[np.ndarray, fl
     if cot:
         L = -cot_laplacian_matrix(vs, fs, normalize=True)
     else:
-        L = uniform_laplacian_matrix(fs, normalize=True)
+        L = -uniform_laplacian_matrix(fs, normalize=True)
 
     if boundary_preserve:
         b = igl.all_boundary_loop(fs)
