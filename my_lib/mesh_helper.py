@@ -63,6 +63,11 @@ class MeshHelper:
         o3d.visualization.draw_geometries([m])
 
     @staticmethod
+    def visualize_vertices(m: trimesh.Trimesh, vids: np.ndarray):
+        pcd = trimesh.PointCloud(m.vertices[vids])
+        MeshHelper.visualize_geos([m, pcd])
+
+    @staticmethod
     def visualize_switch(m1: trimesh.Trimesh, labels1: np.ndarray = None, m2: trimesh.Trimesh = None,
                          labels2: np.ndarray = None):
         if m2 is None:
