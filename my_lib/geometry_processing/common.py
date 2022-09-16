@@ -18,6 +18,23 @@ def o3d_to_trimesh(o3d_m, process=True) -> trimesh.Trimesh:
     return trimesh.Trimesh(vertices=np.asarray(o3d_m.vertices), faces=np.asarray(o3d_m.triangles), process=process)
 
 
+def get_neighborhood(fs: np.ndarray, vids: np.ndarray, order: int = 1):
+    """
+    Given vertex ids, get the neighborhood of the vertices. The neighborhood does not include the vertex itself.
+    """
+    vv_adj = igl.adjacency_list(fs)
+    visited = np.zeros(len(vv_adj), dtype=bool)
+    visited[vids] = True
+    nei_vids = np.unique(np.concatenate([vv_adj[i] for i in vids]))
+    for _ in range(1, order):
+        cur_vids = nei_vids[~visited[nei_vids]]
+        nei_vids = np.union1d(np.concatenate([vv_adj[i] for i in cur_vids]), nei_vids)
+        visited[cur_vids] = True
+
+    nei_vids = np.setdiff1d(nei_vids, vids)
+    return nei_vids
+
+
 def grid_triangulation(vids: np.ndarray) -> np.ndarray:
     """
     Do grid triangulation for a set of vertices. For each grid cell, we use two triangles to represent it as follows:
