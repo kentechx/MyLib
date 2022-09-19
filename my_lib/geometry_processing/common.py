@@ -156,11 +156,12 @@ def close_hole(vs: np.ndarray, fs: np.ndarray, hole_vids) -> np.ndarray:
     return out_fs
 
 
-def uniform_laplacian_matrix(fs: np.ndarray, normalize: bool = False) -> scipy.sparse.csr_matrix:
+def uniform_laplacian_matrix(fs: np.ndarray, nv: int, normalize: bool = False) -> scipy.sparse.csr_matrix:
     """
     L = D - A. (positive diagonal)
     """
     A = igl.adjacency_matrix(fs)
+    A.resize((nv, nv))
     L = scipy.sparse.diags(A.sum(1).A1) - A
     if normalize:
         L = scipy.sparse.diags(1. / (L.diagonal() + _epsilon)) @ L
@@ -193,7 +194,7 @@ def laplacian_smooth(vs: np.ndarray, fs: np.ndarray, lambs: Union[np.ndarray, fl
     if cot:
         L = -cot_laplacian_matrix(vs, fs, normalize=True)
     else:
-        L = -uniform_laplacian_matrix(fs, normalize=True)
+        L = -uniform_laplacian_matrix(fs, len(vs), normalize=True)
 
     if boundary_preserve:
         b = igl.all_boundary_loop(fs)
@@ -406,7 +407,7 @@ def manifold_harmonics_basis(vs: np.ndarray, fs: np.ndarray, cot: bool = True):
     if cot:
         L = cot_laplacian_matrix(vs, fs, normalize=False).toarray()
     else:
-        L = uniform_laplacian_matrix(fs, normalize=False).toarray()
+        L = uniform_laplacian_matrix(fs, len(vs), normalize=False).toarray()
 
     w, v = manifold_harmonics_basis_laplacian(L)
     return w, v
