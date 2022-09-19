@@ -82,6 +82,58 @@ def fan_triangulation(vids: np.ndarray) -> np.ndarray:
     return fids
 
 
+def close_hole(vs: np.ndarray, fs: np.ndarray, hole_vids) -> np.ndarray:
+    """
+    :param hole_vids: the vid sequence
+    :return:
+        out_fs:
+    """
+    hole_vids = np.array(hole_vids)
+    if len(hole_vids) < 3:
+        return fs.copy()
+
+    if len(hole_vids) == 3:
+        # fill one triangle
+        out_fs = np.concatenate([fs, hole_vids[::-1][None]], axis=0)
+        return out_fs
+
+    # heuristically divide the hole
+    queue = [hole_vids[::-1]]
+    out_fs = []
+    while len(queue) > 0:
+        cur_vids = queue.pop(0)
+        if len(cur_vids) == 3:
+            out_fs.append(cur_vids)
+            continue
+
+        # current hole
+        hole_edge_len = np.linalg.norm(vs[np.roll(cur_vids, -1)] - vs[cur_vids], axis=1)
+        hole_len = np.sum(hole_edge_len)
+        min_concave_degree = np.inf
+        tar_i, tar_j = -1, -1
+        for i in range(len(cur_vids)):
+            eu_dists = np.linalg.norm(vs[cur_vids[i]] - vs[cur_vids], axis=1)
+            geo_dists = np.roll(np.roll(hole_edge_len, -i).cumsum(), i)
+            geo_dists = np.roll(np.minimum(geo_dists, hole_len - geo_dists), 1)
+            concave_degree = eu_dists / (geo_dists ** 2 + _epsilon)
+
+            _idx = 1
+            j = np.argsort(concave_degree)[_idx]
+            while min((j + len(cur_vids) - i) % len(cur_vids), (i + len(cur_vids) - j) % len(cur_vids)) <= 1:
+                _idx += 1
+                j = np.argsort(concave_degree)[_idx]
+
+            if concave_degree[j] < min_concave_degree:
+                min_concave_degree = concave_degree[j]
+                tar_i, tar_j = min(i, j), max(i, j)
+
+        queue.append(cur_vids[tar_i:tar_j + 1])
+        queue.append(np.concatenate([cur_vids[tar_j:], cur_vids[:tar_i + 1]]))
+
+    out_fs = np.concatenate([fs, np.array(out_fs)], axis=0)
+    return out_fs
+
+
 def uniform_laplacian_matrix(fs: np.ndarray, normalize: bool = False) -> scipy.sparse.csr_matrix:
     """
     L = D - A. (positive diagonal)
