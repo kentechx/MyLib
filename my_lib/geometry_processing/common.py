@@ -18,7 +18,7 @@ def o3d_to_trimesh(o3d_m, process=True) -> trimesh.Trimesh:
     return trimesh.Trimesh(vertices=np.asarray(o3d_m.vertices), faces=np.asarray(o3d_m.triangles), process=process)
 
 
-def get_neighborhood(fs: np.ndarray, vids: np.ndarray, order: int = 1):
+def get_vertex_neighborhood(fs: np.ndarray, vids: np.ndarray, order: int = 1):
     """
     Given vertex ids, get the neighborhood of the vertices. The neighborhood does not include the vertex itself.
     """
@@ -28,6 +28,8 @@ def get_neighborhood(fs: np.ndarray, vids: np.ndarray, order: int = 1):
     nei_vids = np.unique(np.concatenate([vv_adj[i] for i in vids]))
     for _ in range(1, order):
         cur_vids = nei_vids[~visited[nei_vids]]
+        if len(cur_vids):
+            break
         nei_vids = np.union1d(np.concatenate([vv_adj[i] for i in cur_vids]), nei_vids)
         visited[cur_vids] = True
 
