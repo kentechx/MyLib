@@ -28,13 +28,19 @@ def get_vertex_neighborhood(fs: np.ndarray, vids: np.ndarray, order: int = 1):
     nei_vids = np.unique(np.concatenate([vv_adj[i] for i in vids]))
     for _ in range(1, order):
         cur_vids = nei_vids[~visited[nei_vids]]
-        if len(cur_vids):
+        if len(cur_vids) == 0:
             break
         nei_vids = np.union1d(np.concatenate([vv_adj[i] for i in cur_vids]), nei_vids)
         visited[cur_vids] = True
 
     nei_vids = np.setdiff1d(nei_vids, vids)
     return nei_vids
+
+
+def get_fids_from_vids(fs: np.ndarray, vids: np.ndarray):
+    selected = np.zeros(fs.shape[0], dtype=bool)
+    selected[vids] = True
+    return np.where(np.all(selected[fs], axis=1))[0]
 
 
 def grid_triangulation(vids: np.ndarray) -> np.ndarray:
