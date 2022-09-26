@@ -374,6 +374,16 @@ def remove_low_valence_faces(vs: np.ndarray, fs: np.ndarray, remove_unreferenced
     return out_vs, out_fs
 
 
+def remove_non_max_face_components(vs, fs):
+    ls = igl.face_components(fs)
+    cs = np.bincount(ls)
+    if len(cs) == 1:
+        return vs, fs
+
+    out_vs, out_fs, _, _ = igl.remove_unreferenced(vs, fs[ls == np.argmax(cs)])
+    return out_vs, out_fs
+
+
 def remove_non_manifold(vs: np.ndarray, fs: np.ndarray):
     import open3d as o3d
     vs = vs.copy()
