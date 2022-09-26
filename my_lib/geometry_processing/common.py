@@ -90,7 +90,7 @@ def fan_triangulation(vids: np.ndarray) -> np.ndarray:
     return fids
 
 
-def close_holes(vs: np.ndarray, fs: np.ndarray, hole_len_thr: float=10000.) -> np.ndarray:
+def close_holes(vs: np.ndarray, fs: np.ndarray, hole_len_thr: float = 10000.) -> np.ndarray:
     """
     Close holes whose length is less than a given threshold.
     :param edge_len_thr:
