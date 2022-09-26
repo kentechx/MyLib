@@ -216,19 +216,25 @@ def laplacian_smooth(vs: np.ndarray, fs: np.ndarray, lambs: Union[np.ndarray, fl
 
 
 def laplacian_smooth_selected(vs: np.ndarray, fs: np.ndarray, vids: np.ndarray, lamb: float = 1., n_iter: int = 1,
-                              cot: bool = True, implicit: bool = False, boundary_preserve=True) -> np.ndarray:
+                              cot: bool = True, implicit: bool = False, boundary_preserve=True,
+                              boundary_smoothing=True) -> np.ndarray:
     """
     Do laplacian smoothing on the selected vertices.
     """
     lambs = np.zeros(len(vs))
     lambs[vids] = lamb
 
+    out_vs = vs.copy()
+    if not boundary_preserve and boundary_smoothing:
+        # first smoothing boundary
+        out_vs = smooth_boundary_part(out_vs, fs, vids, lamb, n_iter, implicit)
+        boundary_preserve = True
+
     vid_selected = np.zeros(len(vs), dtype=bool)
     vid_selected[vids] = 1
     sub_fids = np.where(np.any(vid_selected[fs], axis=1))[0]
-    sub_vs, sub_fs, IM, sub_vids = igl.remove_unreferenced(vs, fs[sub_fids])
+    sub_vs, sub_fs, IM, sub_vids = igl.remove_unreferenced(out_vs, fs[sub_fids])
 
-    out_vs = vs.copy()
     out_vs[sub_vids] = laplacian_smooth(sub_vs, sub_fs, lambs[sub_vids], n_iter, cot, implicit, boundary_preserve)
 
     return out_vs
@@ -252,11 +258,33 @@ def smooth_boundary(vs: np.ndarray, fs: np.ndarray, vids_included: List = None, 
 
         pts = out_vs[boundary]
         _vids = list(range(len(pts)))
-        if boundary[-1] in vv_adj[0]:
+        if boundary[-1] in vv_adj[boundary[0]]:
             _vids += [0]
 
         if len(_vids) > 3:
             out_vs[boundary] = smooth_line(pts, _vids, lamb, n_iter, implicit)
+
+    return out_vs
+
+
+def smooth_boundary_part(vs: np.ndarray, fs: np.ndarray, vids: np.ndarray, lamb: float = 1., n_iter: int = 1,
+                         implicit: bool = False) -> np.ndarray:
+    lambs = np.zeros(len(vs))
+    lambs[vids] = lamb
+    out_vs = vs.copy()
+
+    vv_adj = igl.adjacency_list(fs)
+    for boundary in igl.all_boundary_loop(fs):
+        if not np.any(np.in1d(boundary, vids)):
+            continue
+
+        pts = out_vs[boundary]
+        _vids = list(range(len(pts)))
+        if boundary[-1] in vv_adj[boundary[0]]:
+            _vids += [0]
+
+        if len(_vids) > 3:
+            out_vs[boundary] = smooth_line(pts, _vids, lambs[boundary], n_iter, implicit)
 
     return out_vs
 
