@@ -177,7 +177,7 @@ def close_hole(vs: np.ndarray, fs: np.ndarray, hole_vids) -> np.ndarray:
     return out_fs
 
 
-def uniform_laplacian_matrix(fs: np.ndarray, nv: int, normalize: bool = False) -> scipy.sparse.csr_matrix:
+def uniform_laplacian_matrix(fs: np.ndarray, nv: int, normalize: bool = False, k: int = 1) -> scipy.sparse.csr_matrix:
     """
     L = D - A. (positive diagonal)
     """
@@ -186,10 +186,18 @@ def uniform_laplacian_matrix(fs: np.ndarray, nv: int, normalize: bool = False) -
     L = scipy.sparse.diags(A.sum(1).A1) - A
     if normalize:
         L = scipy.sparse.diags(1. / (L.diagonal() + _epsilon)) @ L
+
+    if k > 1:
+        L0 = L.copy()
+        for _ in range(k - 1):
+            L = L @ L0
+        if normalize:
+            L = scipy.sparse.diags(1. / (L.diagonal() + _epsilon)) @ L
     return L
 
 
-def cot_laplacian_matrix(vs: np.ndarray, fs: np.ndarray, normalize: bool = False) -> scipy.sparse.csr_matrix:
+def cot_laplacian_matrix(vs: np.ndarray, fs: np.ndarray, normalize: bool = False,
+                         k: int = 1) -> scipy.sparse.csr_matrix:
     L = -igl.cotmatrix(vs, fs)
     if np.any(np.isnan(L.data)):
         L.data[np.isnan(L.data)] = 0.
@@ -200,6 +208,13 @@ def cot_laplacian_matrix(vs: np.ndarray, fs: np.ndarray, normalize: bool = False
 
     if normalize:
         L = scipy.sparse.diags(1. / (L.diagonal() + _epsilon)) @ L
+
+    if k > 1:
+        L0 = L.copy()
+        for _ in range(k - 1):
+            L = L @ L0
+        if normalize:
+            L = scipy.sparse.diags(1. / (L.diagonal() + _epsilon)) @ L
     return L
 
 
