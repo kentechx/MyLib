@@ -9,7 +9,7 @@ import igl
 import scipy
 import scipy.sparse
 import scipy.sparse.linalg
-from typing import Tuple, List, Union
+from typing import Tuple, List, Union, Set
 
 _epsilon = 1e-16
 
@@ -18,11 +18,24 @@ def o3d_to_trimesh(o3d_m, process=True) -> trimesh.Trimesh:
     return trimesh.Trimesh(vertices=np.asarray(o3d_m.vertices), faces=np.asarray(o3d_m.triangles), process=process)
 
 
+def get_vv_adj_list(fs, nv: int = None) -> List[List[int]]:
+    """
+    To avoid memory leak in igl.adjacency_list, but 3x slower.
+    """
+    import open3d as o3d
+    if nv is None:
+        nv = fs.max() + 1
+    m = o3d.geometry.TriangleMesh(o3d.utility.Vector3dVector(np.zeros((nv, 3))),
+                                  o3d.utility.Vector3iVector(fs)).compute_adjacency_list()
+    vv_adj = [list(adj) for adj in m.adjacency_list]
+    return vv_adj
+
+
 def get_vertex_neighborhood(fs: np.ndarray, vids: np.ndarray, order: int = 1):
     """
     Given vertex ids, get the neighborhood of the vertices. The neighborhood does not include the vertex itself.
     """
-    vv_adj = igl.adjacency_list(fs)
+    vv_adj = get_vv_adj_list(fs)
     visited = np.zeros(len(vv_adj), dtype=bool)
     visited[vids] = True
     nei_vids = np.unique(np.concatenate([vv_adj[i] for i in vids]))
@@ -251,7 +264,7 @@ def smooth_boundary(vs: np.ndarray, fs: np.ndarray, vids_included: List = None, 
     if vids_included is not None:
         vids_included = np.asarray(vids_included)
     out_vs = vs.copy()
-    vv_adj = igl.adjacency_list(fs)
+    vv_adj = get_vv_adj_list(fs, len(vs))
     for boundary in igl.all_boundary_loop(fs):
         if vids_included is not None and not np.any(np.in1d(boundary, vids_included)):
             continue
@@ -273,7 +286,7 @@ def smooth_boundary_part(vs: np.ndarray, fs: np.ndarray, vids: np.ndarray, lamb:
     lambs[vids] = lamb
     out_vs = vs.copy()
 
-    vv_adj = igl.adjacency_list(fs)
+    vv_adj = get_vv_adj_list(fs, len(vs))
     for boundary in igl.all_boundary_loop(fs):
         if not np.any(np.in1d(boundary, vids)):
             continue
