@@ -219,18 +219,20 @@ def cot_laplacian_matrix(vs: np.ndarray, fs: np.ndarray, normalize: bool = False
 
 
 def laplacian_smooth(vs: np.ndarray, fs: np.ndarray, lambs: Union[np.ndarray, float] = 1., n_iter: int = 1,
-                     cot: bool = True, implicit: bool = False, boundary_preserve=True) -> np.ndarray:
+                     cot: bool = True, implicit: bool = False, boundary_preserve=True, k: int = 1) -> np.ndarray:
     """
     out_vs = (I + lambs * L)^n_iter * vs, where L is the normalized laplacian matrix (negative diagonal).
     :param lambs: Lambdas in the range [0., 1.]. The vertices will not change if the corresponding lambdas are 0.
     :param cot: If using the cotangent weights.
     :param implicit: If using implicit laplacian smooth. If true, solve (I - lambs * L)^n_iter * out_vs = vs,
             where L is the normalized laplacian matrix (negative diagonal).
+    :param boundary_preserve: If preserving the boundary vertices.
+    :param k: The order of the laplacian.
     """
     if cot:
-        L = -cot_laplacian_matrix(vs, fs, normalize=True)
+        L = -cot_laplacian_matrix(vs, fs, normalize=True, k=k)
     else:
-        L = -uniform_laplacian_matrix(fs, len(vs), normalize=True)
+        L = -uniform_laplacian_matrix(fs, len(vs), normalize=True, k=k)
 
     if boundary_preserve:
         b = igl.all_boundary_loop(fs)
@@ -245,7 +247,7 @@ def laplacian_smooth(vs: np.ndarray, fs: np.ndarray, lambs: Union[np.ndarray, fl
 
 def laplacian_smooth_selected(vs: np.ndarray, fs: np.ndarray, vids: np.ndarray, lamb: float = 1., n_iter: int = 1,
                               cot: bool = True, implicit: bool = False, boundary_preserve=True,
-                              boundary_smoothing=True) -> np.ndarray:
+                              boundary_smoothing=True, k: int = 1) -> np.ndarray:
     """
     Do laplacian smoothing on the selected vertices.
     """
@@ -258,12 +260,17 @@ def laplacian_smooth_selected(vs: np.ndarray, fs: np.ndarray, vids: np.ndarray, 
         out_vs = smooth_boundary_part(out_vs, fs, vids, lamb, n_iter, implicit)
         boundary_preserve = True
 
-    vid_selected = np.zeros(len(vs), dtype=bool)
-    vid_selected[vids] = 1
-    sub_fids = np.where(np.any(vid_selected[fs], axis=1))[0]
+    if k == 1:
+        vid_selected = np.zeros(len(vs), dtype=bool)
+        vid_selected[vids] = 1
+        sub_fids = np.where(np.any(vid_selected[fs], axis=1))[0]
+    else:
+        nei_vids = get_vertex_neighborhood(fs, vids, order=k)
+        nei_vids = np.concatenate([nei_vids, vids])
+        sub_fids = get_fids_from_vids(fs, nei_vids)
     sub_vs, sub_fs, IM, sub_vids = igl.remove_unreferenced(out_vs, fs[sub_fids])
 
-    out_vs[sub_vids] = laplacian_smooth(sub_vs, sub_fs, lambs[sub_vids], n_iter, cot, implicit, boundary_preserve)
+    out_vs[sub_vids] = laplacian_smooth(sub_vs, sub_fs, lambs[sub_vids], n_iter, cot, implicit, boundary_preserve, k)
 
     return out_vs
 
