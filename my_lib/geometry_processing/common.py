@@ -18,6 +18,13 @@ def o3d_to_trimesh(o3d_m, process=True) -> trimesh.Trimesh:
     return trimesh.Trimesh(vertices=np.asarray(o3d_m.vertices), faces=np.asarray(o3d_m.triangles), process=process)
 
 
+def get_all_boundary_vids(fs):
+    bs = igl.all_boundary_loop(fs)
+    if len(bs) == 0:
+        return np.array([], dtype=int)
+    return np.concatenate(bs)
+
+
 def get_vv_adj_list(fs, nv: int = None) -> List[List[int]]:
     """
     To avoid memory leak in igl.adjacency_list, but 3x slower.
@@ -497,3 +504,59 @@ def manifold_harmonics_basis(vs: np.ndarray, fs: np.ndarray, cot: bool = True):
 def manifold_harmonics_basis_laplacian(L: np.ndarray):
     w, v = np.linalg.eigh(L)
     return w, v
+
+
+def mesh_fair_harmonic_global(vs: np.ndarray, fs: np.ndarray, bvids: np.ndarray, cot: bool = True, k: int = 1,
+                              boundary_preserve: bool = True):
+    """
+    Do mesh fairing globally via minimizing the Dirichlet energy. This equals to solve the equation LX=0,
+    where L is the laplacian matrix with order k. You can use igl.harmonic_weights to get a similar result.
+    :param vs: (n, 3)
+    :param fs: (m, 3)
+    :param bvids: (k, ), boundary vertex ids
+    :param cot: bool, whether to use cotangent Laplacian matrix
+    :return:
+        out_vs: (n, 3)
+    """
+    if cot:
+        L = cot_laplacian_matrix(vs, fs, normalize=False, k=k)
+    else:
+        L = uniform_laplacian_matrix(fs, len(vs), normalize=False, k=k)
+
+    if boundary_preserve:
+        _bvids = get_all_boundary_vids(fs)
+        bvids = np.unique(np.concatenate([bvids, _bvids]))
+
+    # minimize trace(X^T*L*X), subject to X[bvids] = vs[bvids]
+    Aeq = scipy.sparse.csr_matrix((len(vs), vs.shape[0]))
+    Beq = np.zeros_like(vs)
+    _, out_vs = igl.min_quad_with_fixed(L, np.zeros_like(vs), bvids, vs[bvids], Aeq, Beq, True)
+    return out_vs
+
+
+def mesh_fair_harmonic_local(vs: np.ndarray, fs: np.ndarray, vids: np.ndarray, cot: bool = True, k: int = 1,
+                             boundary_preserve: bool = True):
+    """
+    Do mesh fairing locally via minimizing the Dirichlet energy for fast computation. This will get the submesh
+    given by `vids` and then do the fairing on the submesh.
+    :param vids: Selected vertex ids to do fairing.
+    :param k: The order of the laplacian matrix.
+    :return:
+    """
+    out_vs = vs.copy()
+    if k == 1:
+        vid_selected = np.zeros(len(vs), dtype=bool)
+        vid_selected[vids] = 1
+        sub_fids = np.where(np.any(vid_selected[fs], axis=1))[0]
+    else:
+        nei_vids = get_vertex_neighborhood(fs, vids, order=k)
+        nei_vids = np.concatenate([nei_vids, vids])
+        sub_fids = get_fids_from_vids(fs, nei_vids)
+    sub_vs, sub_fs, IM, sub_vids = igl.remove_unreferenced(out_vs, fs[sub_fids])
+
+    bvids = IM[np.setdiff1d(sub_vids, vids)]
+    if boundary_preserve:
+        _bvids = get_all_boundary_vids(fs)
+        bvids = np.unique(np.concatenate([bvids, IM[_bvids]]))
+    out_vs[sub_vids] = mesh_fair_harmonic_global(sub_vs, sub_fs, bvids, cot=cot, k=k, boundary_preserve=False)
+    return out_vs
