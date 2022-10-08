@@ -198,8 +198,7 @@ def uniform_laplacian_matrix(fs: np.ndarray, nv: int, normalize: bool = False, k
 
 def cot_laplacian_matrix(vs: np.ndarray, fs: np.ndarray, normalize: bool = False,
                          k: int = 1) -> scipy.sparse.csr_matrix:
-    L = scipy.sparse.csr_matrix((vs.shape[0], vs.shape[0]))
-    L[:] = -igl.cotmatrix(vs, fs)
+    L = -igl.cotmatrix(vs, fs).asformat('csr')
     if np.any(np.isnan(L.data)):
         L.data[np.isnan(L.data)] = 0.
     if np.any(np.isinf(L.data)):
