@@ -519,7 +519,8 @@ def mesh_fair_harmonic_global(vs: np.ndarray, fs: np.ndarray, bvids: np.ndarray,
         out_vs: (n, 3)
     """
     if cot:
-        L = cot_laplacian_matrix(vs, fs, normalize=False, k=k)
+        # L = cot_laplacian_matrix(vs, fs, normalize=False, k=k)
+        L = igl.harmonic_weights_integrated(vs, fs, k=k).asformat('csr')
     else:
         L = uniform_laplacian_matrix(fs, len(vs), normalize=False, k=k)
 
