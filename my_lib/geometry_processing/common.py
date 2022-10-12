@@ -518,21 +518,25 @@ def mesh_fair_harmonic_global(vs: np.ndarray, fs: np.ndarray, bvids: np.ndarray,
     :return:
         out_vs: (n, 3)
     """
-    if cot:
-        # L = cot_laplacian_matrix(vs, fs, normalize=False, k=k)
-        L = igl.harmonic_weights_integrated(vs, fs, k=k).asformat('csr')
-    else:
-        L = uniform_laplacian_matrix(fs, len(vs), normalize=False, k=k)
+    # if cot:
+    #     L = igl.harmonic_weights_integrated(vs, fs, k=k).asformat('csr')
+    # else:
+    #     L = uniform_laplacian_matrix(fs, len(vs), normalize=False, k=k)
 
     if boundary_preserve:
         _bvids = get_all_boundary_vids(fs)
         bvids = np.unique(np.concatenate([bvids, _bvids]))
 
     # minimize trace(X^T*L*X), subject to X[bvids] = vs[bvids]
-    Aeq = scipy.sparse.csr_matrix((len(vs), vs.shape[0]))
-    Beq = np.zeros_like(vs)
-    _, out_vs = igl.min_quad_with_fixed(L, np.zeros_like(vs), bvids, vs[bvids], Aeq, Beq, True)
-    return out_vs
+    # Aeq = scipy.sparse.csr_matrix((len(vs), vs.shape[0]))
+    # Beq = np.zeros_like(vs)
+    # _, out_vs = igl.min_quad_with_fixed(L, np.zeros_like(vs), bvids, vs[bvids], Aeq, Beq, True)
+
+    # the following is faster than igl.min_quad_with_fixed
+    if cot:
+        return igl.harmonic_weights(vs, fs, bvids, vs[bvids], k=k)
+    else:
+        return igl.harmonic_weights_uniform_laplacian(fs, bvids, vs[bvids], k=k)
 
 
 def mesh_fair_harmonic_local(vs: np.ndarray, fs: np.ndarray, vids: np.ndarray, cot: bool = True, k: int = 1,
