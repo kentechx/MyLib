@@ -4,6 +4,8 @@ import trimesh
 import trimesh.parent
 from typing import List, Tuple, Union
 
+from pytorch3d.structures import meshes
+
 try:
     import open3d as o3d
 except:
@@ -95,23 +97,50 @@ class MeshHelper:
 
     @staticmethod
     def visualize_geos(geos: List[Union[trimesh.parent.Geometry3D, o3d.geometry.Geometry3D]]):
-        o3d_geos = []
-        for g in geos:
-            if isinstance(g, trimesh.Trimesh):
-                m = o3d.geometry.TriangleMesh(o3d.utility.Vector3dVector(g.vertices),
-                                              o3d.utility.Vector3iVector(g.faces))
-                m.compute_vertex_normals()
-                o3d_geos.append(m)
-            elif isinstance(g, trimesh.PointCloud):
-                pcd = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(np.asarray(g.vertices)))
-                o3d_geos.append(pcd)
-            elif isinstance(g, trimesh.path.Path3D):
-                m = o3d.geometry.LineSet(o3d.utility.Vector3dVector(np.array(g.vertices)),
-                                         o3d.utility.Vector2iVector(np.array(g.vertex_nodes)))
-                o3d_geos.append(m)
-            elif isinstance(g, o3d.geometry.Geometry3D):
-                o3d_geos.append(g)
-            else:
-                raise ValueError("Unsupported geometry type: {}".format(type(g)))
-
+        o3d_geos = [MeshHelper.trimesh_to_o3d(g) for g in geos]
         o3d.visualization.draw_geometries(o3d_geos)
+
+    @staticmethod
+    def visualize_geos_switch(geos1: List[Union[trimesh.parent.Geometry3D, o3d.geometry.Geometry3D]],
+                              geos2: List[Union[trimesh.parent.Geometry3D, o3d.geometry.Geometry3D]]):
+        geos1 = [MeshHelper.trimesh_to_o3d(g) for g in geos1]
+        geos2 = [MeshHelper.trimesh_to_o3d(g) for g in geos2]
+        vis = o3d.visualization.VisualizerWithKeyCallback()
+        vis.create_window()
+        geo_list = [geos1, geos2]
+        i = 0
+        for g in geo_list[i]:
+            vis.add_geometry(g)
+            vis.update_geometry(g)
+
+        def switch(vis: o3d.visualization.VisualizerWithKeyCallback):
+            nonlocal i, geo_list
+            for g in geo_list[i]:
+                vis.remove_geometry(g, False)
+            i = 1 - i
+            for g in geo_list[i]:
+                vis.add_geometry(g, False)
+                vis.update_geometry(g)
+
+        vis.register_key_callback(ord(" "), switch)
+        vis.run()
+        vis.destroy_window()
+
+    @staticmethod
+    def trimesh_to_o3d(g: Union[trimesh.parent.Geometry3D, o3d.geometry.Geometry3D]):
+        if isinstance(g, trimesh.Trimesh):
+            m = o3d.geometry.TriangleMesh(o3d.utility.Vector3dVector(g.vertices),
+                                          o3d.utility.Vector3iVector(g.faces))
+            m.compute_vertex_normals()
+            return m
+        elif isinstance(g, trimesh.PointCloud):
+            pcd = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(np.asarray(g.vertices)))
+            return pcd
+        elif isinstance(g, trimesh.path.Path3D):
+            m = o3d.geometry.LineSet(o3d.utility.Vector3dVector(np.array(g.vertices)),
+                                     o3d.utility.Vector2iVector(np.array(g.vertex_nodes)))
+            return m
+        elif isinstance(g, o3d.geometry.Geometry3D):
+            return g
+        else:
+            raise ValueError("Unsupported geometry type: {}".format(type(g)))
