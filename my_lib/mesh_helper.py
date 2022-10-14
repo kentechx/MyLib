@@ -4,8 +4,6 @@ import trimesh
 import trimesh.parent
 from typing import List, Tuple, Union
 
-from pytorch3d.structures import meshes
-
 try:
     import open3d as o3d
 except:
