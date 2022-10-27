@@ -567,5 +567,6 @@ def mesh_fair_harmonic_local(vs: np.ndarray, fs: np.ndarray, vids: np.ndarray, c
     if boundary_preserve:
         _bvids = get_all_boundary_vids(fs)
         bvids = np.unique(np.concatenate([bvids, IM[_bvids]]))
+        bvids = np.setdiff1d(bvids, -1)
     out_vs[sub_vids] = mesh_fair_harmonic_global(sub_vs, sub_fs, bvids, cot=cot, k=k, boundary_preserve=False)
     return out_vs
