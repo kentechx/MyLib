@@ -332,7 +332,7 @@ def smooth_boundary_part(vs: np.ndarray, fs: np.ndarray, vids: np.ndarray, lamb:
 
 
 def smooth_line(points: np.ndarray, pid_seq: List[int], lambs: Union[np.ndarray, float] = 1., n_iter: int = 1,
-                implicit: bool = False) -> np.ndarray:
+                implicit: bool = False, k=1) -> np.ndarray:
     """
     :param points: point coordinates, (n, 3), where n is the number of points.
     :param pid_seq: point id sequence
@@ -343,7 +343,11 @@ def smooth_line(points: np.ndarray, pid_seq: List[int], lambs: Union[np.ndarray,
     col = np.concatenate([pid_seq[1:], pid_seq[:-1]])
     data = np.full(len(row), -0.5)
     L = scipy.sparse.csr_matrix((data, (row, col)), shape=(len(points), len(points)))
-    L = L + scipy.sparse.eye(len(points))
+    L = L + scipy.sparse.diags(-L.sum(1).A1)
+    if k > 1:
+        L0 = L.copy()
+        for _ in range(k - 1):
+            L = L @ L0
     L = -scipy.sparse.diags(1. / (L.diagonal() + _epsilon)) @ L
 
     if pid_seq[-1] != pid_seq[0]:
