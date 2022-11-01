@@ -539,7 +539,12 @@ def mesh_fair_harmonic_global(vs: np.ndarray, fs: np.ndarray, bvids: np.ndarray,
 
     # the following is faster than igl.min_quad_with_fixed
     if cot:
-        return igl.harmonic_weights(vs, fs, bvids, vs[bvids], k=k)
+        L = -cot_laplacian_matrix(vs, fs, tol=100.)
+        M = igl.massmatrix(vs, fs).asformat('csr')
+        b = bvids.astype('i4')
+        bc = vs[b]
+        return igl.harmonic_weights_from_laplacian_and_mass(L, M, b, bc, k)
+        # return igl.harmonic_weights(vs, fs, bvids, vs[bvids], k=k)
     else:
         return igl.harmonic_weights_uniform_laplacian(fs, bvids, vs[bvids], k=k)
 
