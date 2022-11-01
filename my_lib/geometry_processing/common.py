@@ -471,6 +471,15 @@ def deform_arap_igl(vertices: np.ndarray, faces: np.ndarray, handle_id: np.ndarr
     return out_vertices
 
 
+def deform_harmonic(vs: np.ndarray, fs: np.ndarray, handle_id: np.ndarray, handle_co: np.ndarray, k=2):
+    L = -cot_laplacian_matrix(vs, fs, tol=100.)
+    M = igl.massmatrix(vs, fs).asformat('csr')
+    b = handle_id.astype('i4')
+    dp_b = handle_co - vs[b]  # (n, 3)
+    dp = igl.harmonic_weights_from_laplacian_and_mass(L, M, b, dp_b, k)
+    return dp + vs
+
+
 def filter_mhb(v_attrs: np.ndarray, basis: np.ndarray) -> np.ndarray:
     """
     Filter with manifold harmonics basis (MHB).
