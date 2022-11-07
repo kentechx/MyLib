@@ -226,6 +226,25 @@ def cot_laplacian_matrix(vs: np.ndarray, fs: np.ndarray, normalize: bool = False
     return L
 
 
+def robust_laplacian(vs, fs, mollify_factor=1e-5) -> Tuple[scipy.sparse.csc_matrix, scipy.sparse.csc_matrix]:
+    """
+    Get a laplcian with iDT (intrinsic Delaunay triangulation) and intrinsic mollification.
+    Ref https://www.cs.cmu.edu/~kmcrane/Projects/NonmanifoldLaplace/NonmanifoldLaplace.pdf
+    :param mollify_factor: the mollification factor.
+    """
+    lin = igl.edge_lengths(vs, fs)
+    delta = mollify_factor * np.mean(lin)
+    eps = np.maximum(0, delta - lin[:, 0] - lin[:, 1] + lin[:, 2])
+    eps = np.maximum(eps, delta - lin[:, 0] - lin[:, 2] + lin[:, 1])
+    eps = np.maximum(eps, delta - lin[:, 1] - lin[:, 2] + lin[:, 0])
+    eps = eps.max()
+    lin[np.where(lin < mollify_factor)[0]] += eps
+    lin, fin = igl.intrinsic_delaunay_triangulation(lin, fs)
+    L = igl.cotmatrix_intrinsic(lin, fin)
+    M = igl.massmatrix_intrinsic(lin, fin, igl.MASSMATRIX_TYPE_VORONOI)
+    return L, M
+
+
 def laplacian_smooth(vs: np.ndarray, fs: np.ndarray, lambs: Union[np.ndarray, float] = 1., n_iter: int = 1,
                      cot: bool = True, implicit: bool = False, boundary_preserve=True, k: int = 1) -> np.ndarray:
     """
