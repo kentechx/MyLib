@@ -63,6 +63,19 @@ def get_fids_from_vids(fs: np.ndarray, vids: np.ndarray):
     return np.where(np.all(selected[fs], axis=1))[0]
 
 
+def get_mollified_edge_length(vs: np.ndarray, fs: np.ndarray, mollify_factor=1e-5) -> np.ndarray:
+    lin = igl.edge_lengths(vs, fs)
+    if mollify_factor == 0:
+        return lin
+    delta = mollify_factor * np.mean(lin)
+    eps = np.maximum(0, delta - lin[:, 0] - lin[:, 1] + lin[:, 2])
+    eps = np.maximum(eps, delta - lin[:, 0] - lin[:, 2] + lin[:, 1])
+    eps = np.maximum(eps, delta - lin[:, 1] - lin[:, 2] + lin[:, 0])
+    eps = eps.max()
+    lin += eps
+    return lin
+
+
 def grid_triangulation(vids: np.ndarray) -> np.ndarray:
     """
     Do grid triangulation for a set of vertices. For each grid cell, we use two triangles to represent it as follows:
@@ -204,15 +217,10 @@ def uniform_laplacian_matrix(fs: np.ndarray, nv: int, normalize: bool = False, k
 
 
 def cot_laplacian_matrix(vs: np.ndarray, fs: np.ndarray, normalize: bool = False,
-                         k: int = 1, tol=1e6) -> scipy.sparse.csr_matrix:
+                         k: int = 1, mollify_factor=1e-5) -> scipy.sparse.csr_matrix:
     """ The off-diagnoals are $-1/2 * (\cot \alpha_{ij} + \cot \beta_{ij})$ """
-    L = -igl.cotmatrix(vs, fs).asformat('csr')
-    if np.any(np.isnan(L.data)):
-        L.data[np.isnan(L.data)] = 0.
-    if np.any(np.isinf(L.data)):
-        L.data[np.isinf(L.data)] = tol
-    if not np.allclose(L.sum(1), 0.):
-        L = L - scipy.sparse.diags(L.sum(1).A1)
+    l = get_mollified_edge_length(vs, fs, mollify_factor)
+    L = -igl.cotmatrix_intrinsic(l, fs).asformat('csr')
 
     if normalize:
         L = scipy.sparse.diags(1. / (L.diagonal() + _epsilon)) @ L
@@ -232,13 +240,7 @@ def robust_laplacian(vs, fs, mollify_factor=1e-5) -> Tuple[scipy.sparse.csc_matr
     Ref https://www.cs.cmu.edu/~kmcrane/Projects/NonmanifoldLaplace/NonmanifoldLaplace.pdf
     :param mollify_factor: the mollification factor.
     """
-    lin = igl.edge_lengths(vs, fs)
-    delta = mollify_factor * np.mean(lin)
-    eps = np.maximum(0, delta - lin[:, 0] - lin[:, 1] + lin[:, 2])
-    eps = np.maximum(eps, delta - lin[:, 0] - lin[:, 2] + lin[:, 1])
-    eps = np.maximum(eps, delta - lin[:, 1] - lin[:, 2] + lin[:, 0])
-    eps = eps.max()
-    lin[np.where(lin < mollify_factor)[0]] += eps
+    lin = get_mollified_edge_length(vs, fs, mollify_factor)
     lin, fin = igl.intrinsic_delaunay_triangulation(lin, fs)
     L = igl.cotmatrix_intrinsic(lin, fin)
     M = igl.massmatrix_intrinsic(lin, fin, igl.MASSMATRIX_TYPE_VORONOI)
