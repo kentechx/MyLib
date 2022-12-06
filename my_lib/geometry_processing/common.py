@@ -606,3 +606,15 @@ def mesh_fair_harmonic_local(vs: np.ndarray, fs: np.ndarray, vids: np.ndarray, c
         bvids = np.setdiff1d(bvids, -1)
     out_vs[sub_vids] = mesh_fair_harmonic_global(sub_vs, sub_fs, bvids, cot=cot, k=k, boundary_preserve=False)
     return out_vs
+
+
+def mesh_fair_laplacian_energy(vs: np.ndarray, fs: np.ndarray, vids: np.ndarray, alpha=1e-4, k=2):
+    import robust_laplacian
+    L, M = robust_laplacian.mesh_laplacian(vs, fs)
+    Q = igl.harmonic_weights_integrated_from_laplacian_and_mass(L, M, k)
+
+    a = np.full(len(vs), 0.)  # alpha
+    a[vids] = alpha
+    a = scipy.sparse.diags(a)
+    out_vs = scipy.sparse.linalg.spsolve(a * Q + M - a * M, (M - a * M) @ vs)
+    return out_vs
