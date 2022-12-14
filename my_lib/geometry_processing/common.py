@@ -25,7 +25,7 @@ def get_all_boundary_vids(fs):
     return np.concatenate(bs)
 
 
-def get_vv_adj_list_o3d(fs, nv: int = None) -> List[List[int]]:
+def get_vv_adj_list(fs, nv: int = None) -> List[List[int]]:
     """
     To avoid memory leak in igl.adjacency_list, but 3x slower.
     """
@@ -38,7 +38,7 @@ def get_vv_adj_list_o3d(fs, nv: int = None) -> List[List[int]]:
     return vv_adj
 
 
-def get_vv_adj_list(fs, nv: int = None) -> List[List[int]]:
+def get_vv_adj_list_python(fs, nv: int = None) -> List[List[int]]:
     if nv is None:
         nv = fs.max() + 1
 
