@@ -25,7 +25,7 @@ def get_all_boundary_vids(fs):
     return np.concatenate(bs)
 
 
-def get_vv_adj_list(fs, nv: int = None) -> List[List[int]]:
+def get_vv_adj_list_o3d(fs, nv: int = None) -> List[List[int]]:
     """
     To avoid memory leak in igl.adjacency_list, but 3x slower.
     """
@@ -36,6 +36,21 @@ def get_vv_adj_list(fs, nv: int = None) -> List[List[int]]:
                                   o3d.utility.Vector3iVector(fs)).compute_adjacency_list()
     vv_adj = [list(adj) for adj in m.adjacency_list]
     return vv_adj
+
+
+def get_vv_adj_list(fs, nv: int = None) -> List[List[int]]:
+    if nv is None:
+        nv = fs.max() + 1
+
+    vv_adj = [set() for _ in range(nv)]
+    for f in fs:
+        vv_adj[f[0]].add(f[1])
+        vv_adj[f[0]].add(f[2])
+        vv_adj[f[1]].add(f[0])
+        vv_adj[f[1]].add(f[2])
+        vv_adj[f[2]].add(f[0])
+        vv_adj[f[2]].add(f[1])
+    return [list(i) for i in vv_adj]
 
 
 def get_vertex_neighborhood(fs: np.ndarray, vids: np.ndarray, order: int = 1):
@@ -618,3 +633,79 @@ def mesh_fair_laplacian_energy(vs: np.ndarray, fs: np.ndarray, vids: np.ndarray,
     a = scipy.sparse.diags(a)
     out_vs = scipy.sparse.linalg.spsolve(a * Q + M - a * M, (M - a * M) @ vs)
     return out_vs
+
+
+def triangulation_refine_leipa(vs: np.ndarray, fs: np.ndarray, fids: np.ndarray, density_factor: float = np.sqrt(2)):
+    """
+    Refine the triangles using barycentric subdivision and Delaunay triangulation.
+    You should remove unreferenced vertices before the refinement.
+    See "Filling holes in meshes." [Liepa 2003].
+
+    :return:
+        out_vs: (n, 3), the added vertices are appended to the end of the original vertices.
+        out_fs: (m, 3), the added faces are appended to the end of the original faces.
+        FI: (len(fs), ), face index mapping from the original faces to the refined faces, where
+            fs[i] = out_fs[FI[i]], and FI[i]=-1 means the i-th face is deleted.
+    """
+    out_vs = np.copy(vs)
+    out_fs = np.copy(fs)
+
+    if fids is None or len(fids) == 0:
+        return out_vs, out_fs, np.arange(len(fs))
+
+    # initialize sigma
+    l = get_mollified_edge_length(out_vs, out_fs)
+    vv_adj_list = get_vv_adj_list(out_fs, len(vs))
+    v_sigma = np.array([l[adj_vids].mean() for adj_vids in vv_adj_list])  # nv
+    vc_sigma = v_sigma[out_fs].mean(axis=1)  # nf
+
+    all_sel_fids = np.copy(fids)
+    for _ in range(100):
+        # check edge length
+        s = density_factor * np.linalg.norm(
+            out_vs[out_fs[all_sel_fids]].mean(1, keepdims=True) - out_vs[out_fs[all_sel_fids]], axis=-1)
+        cond = np.all(np.logical_and(s > vc_sigma[all_sel_fids, None], s > v_sigma[out_fs[all_sel_fids]]), axis=1)
+        sel_fids = all_sel_fids[cond]  # need to subdivide
+
+        if len(sel_fids) == 0:
+            break
+
+        # subdivide
+        out_vs, added_fs = igl.false_barycentric_subdivision(out_vs, out_fs[sel_fids])
+
+        # delete old faces from out_fs and all_sel_fids
+        out_fs[sel_fids] = -1
+        all_sel_fids = np.setdiff1d(all_sel_fids, sel_fids)
+
+        # add new vertices, faces & update selection
+        out_fs = np.concatenate([out_fs, added_fs], axis=0)
+        sel_fids = np.arange(len(out_fs) - len(added_fs), len(out_fs))
+        all_sel_fids = np.concatenate([all_sel_fids, sel_fids], axis=0)
+
+        # delaunay
+        l = get_mollified_edge_length(out_vs, out_fs[all_sel_fids])
+        _, add_fs = igl.intrinsic_delaunay_triangulation(l, out_fs[all_sel_fids])
+        out_fs[all_sel_fids] = add_fs
+
+        # update vv_adj_list
+        vv_adj_list.extend([[] for _ in range(len(out_vs) - len(vv_adj_list))])
+        _vv_adj_list = get_vv_adj_list(out_fs[all_sel_fids], len(out_vs))
+        sel_vids = np.unique(out_fs[all_sel_fids])
+        for sel_vid in sel_vids:
+            vv_adj_list[sel_vid] = _vv_adj_list[sel_vid]
+
+        # update v_sigma and vc_sigma
+        v_sigma = np.concatenate([v_sigma, np.zeros(len(out_vs) - len(v_sigma))])
+        l = get_mollified_edge_length(out_vs, out_fs)
+        for sel_vid in sel_vids:
+            if sel_vid >= len(vs):
+                v_sigma[sel_vid] = l[_vv_adj_list[sel_vid]].mean()
+        vc_sigma = v_sigma[out_fs].mean(axis=1)  # nf
+
+    # update FI, remove deleted faces
+    FI = np.arange(len(fs))
+    FI[out_fs[:len(fs), 0] < -1] = -1
+    idx = np.where(FI >= 0)[0]
+    FI[idx] = np.arange(len(idx))
+    out_fs = out_fs[out_fs[:, 0] >= 0]
+    return out_vs, out_fs, FI
