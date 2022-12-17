@@ -657,6 +657,8 @@ def triangulation_refine_leipa(vs: np.ndarray, fs: np.ndarray, fids: np.ndarray,
     l = get_mollified_edge_length(out_vs, out_fs)
     vv_adj_list = get_vv_adj_list(out_fs, len(vs))
     v_sigma = np.array([l[adj_vids].mean() for adj_vids in vv_adj_list])  # nv
+    if np.isnan(v_sigma).any():
+        print("Warning: some vertices have no adjacent faces, the refinement may be incorrect.")
     vc_sigma = v_sigma[out_fs].mean(axis=1)  # nf
 
     all_sel_fids = np.copy(fids)
