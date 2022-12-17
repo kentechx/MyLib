@@ -1,6 +1,5 @@
 import cv2
 import numpy as np
-from skimage import img_as_ubyte
 from PIL import Image, ImageOps
 from typing import List, Dict, Any
 
