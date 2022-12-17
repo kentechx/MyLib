@@ -632,7 +632,7 @@ def mesh_fair_laplacian_energy(vs: np.ndarray, fs: np.ndarray, vids: np.ndarray,
     a[vids] = alpha
     a = scipy.sparse.diags(a)
     out_vs = scipy.sparse.linalg.spsolve(a * Q + M - a * M, (M - a * M) @ vs)
-    return out_vs
+    return np.ascontiguousarray(out_vs)
 
 
 def triangulation_refine_leipa(vs: np.ndarray, fs: np.ndarray, fids: np.ndarray, density_factor: float = np.sqrt(2)):
