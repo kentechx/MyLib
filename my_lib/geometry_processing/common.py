@@ -637,7 +637,7 @@ def mesh_fair_laplacian_energy(vs: np.ndarray, fs: np.ndarray, vids: np.ndarray,
     a[vids] = alpha
     a = scipy.sparse.diags(a)
     out_vs = scipy.sparse.linalg.spsolve(a * Q + M - a * M, (M - a * M) @ vs)
-    return out_vs
+    return np.ascontiguousarray(out_vs)
 
 
 def triangulation_refine_leipa(vs: np.ndarray, fs: np.ndarray, fids: np.ndarray, density_factor: float = np.sqrt(2)):
@@ -662,6 +662,8 @@ def triangulation_refine_leipa(vs: np.ndarray, fs: np.ndarray, fids: np.ndarray,
     l = get_mollified_edge_length(out_vs, out_fs)
     vv_adj_list = get_vv_adj_list(out_fs, len(vs))
     v_sigma = np.array([l[adj_vids].mean() for adj_vids in vv_adj_list])  # nv
+    if np.isnan(v_sigma).any():
+        print("Warning: some vertices have no adjacent faces, the refinement may be incorrect.")
     vc_sigma = v_sigma[out_fs].mean(axis=1)  # nf
 
     all_sel_fids = np.copy(fids)
@@ -709,7 +711,7 @@ def triangulation_refine_leipa(vs: np.ndarray, fs: np.ndarray, fids: np.ndarray,
 
     # update FI, remove deleted faces
     FI = np.arange(len(fs))
-    FI[out_fs[:len(fs), 0] < -1] = -1
+    FI[out_fs[:len(fs), 0] < 0] = -1
     idx = np.where(FI >= 0)[0]
     FI[idx] = np.arange(len(idx))
     out_fs = out_fs[out_fs[:, 0] >= 0]
