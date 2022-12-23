@@ -249,15 +249,18 @@ def cot_laplacian_matrix(vs: np.ndarray, fs: np.ndarray, normalize: bool = False
     return L
 
 
-def robust_laplacian(vs, fs, mollify_factor=1e-5) -> Tuple[scipy.sparse.csc_matrix, scipy.sparse.csc_matrix]:
+def robust_laplacian(vs, fs, mollify_factor=1e-5, delaunay=True) -> \
+        Tuple[scipy.sparse.csc_matrix, scipy.sparse.csc_matrix]:
     """
     Get a laplcian with iDT (intrinsic Delaunay triangulation) and intrinsic mollification.
     Ref https://www.cs.cmu.edu/~kmcrane/Projects/NonmanifoldLaplace/NonmanifoldLaplace.pdf
     :param mollify_factor: the mollification factor.
     """
     lin = get_mollified_edge_length(vs, fs, mollify_factor)
-    lin, fin = igl.intrinsic_delaunay_triangulation(lin, fs)
-    L = igl.cotmatrix_intrinsic(lin, fin)
+    fin = fs
+    if delaunay:
+        lin, fin = igl.intrinsic_delaunay_triangulation(lin, fs)
+    L = -igl.cotmatrix_intrinsic(lin, fin)
     M = igl.massmatrix_intrinsic(lin, fin, igl.MASSMATRIX_TYPE_VORONOI)
     return L, M
 
@@ -508,8 +511,10 @@ def deform_arap_igl(vertices: np.ndarray, faces: np.ndarray, handle_id: np.ndarr
 
 
 def deform_harmonic(vs: np.ndarray, fs: np.ndarray, handle_id: np.ndarray, handle_co: np.ndarray, k=2):
-    L = -cot_laplacian_matrix(vs, fs, tol=100.)
-    M = igl.massmatrix(vs, fs).asformat('csr')
+    # L = -cot_laplacian_matrix(vs, fs, tol=100.)
+    # M = igl.massmatrix(vs, fs).asformat('csr')
+    L, M = robust_laplacian(vs, fs, delaunay=False)
+    L = -L
     b = handle_id.astype('i4')
     dp_b = handle_co - vs[b]  # (n, 3)
     dp = igl.harmonic_weights_from_laplacian_and_mass(L, M, b, dp_b, k)
@@ -584,8 +589,8 @@ def mesh_fair_harmonic_global(vs: np.ndarray, fs: np.ndarray, bvids: np.ndarray,
 
     # the following is faster than igl.min_quad_with_fixed
     if cot:
-        L = -cot_laplacian_matrix(vs, fs, tol=100.)
-        M = igl.massmatrix(vs, fs).asformat('csr')
+        L, M = robust_laplacian(vs, fs, delaunay=False)
+        L = -L
         b = bvids.astype('i4')
         bc = vs[b]
         return igl.harmonic_weights_from_laplacian_and_mass(L, M, b, bc, k)
