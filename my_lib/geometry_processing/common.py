@@ -440,7 +440,7 @@ def remove_low_valence_faces(vs: np.ndarray, fs: np.ndarray, remove_unreferenced
     # remove faces whose all vertices are on the boundary
     out_vs = vs.copy()
     out_fs = fs.copy()
-    is_boundary = np.zeros(len(out_vs), dtype=np.bool)
+    is_boundary = np.zeros(len(out_vs), dtype=bool)
     b = igl.all_boundary_loop(out_fs)
     if len(b) == 0:
         return out_vs, out_fs
