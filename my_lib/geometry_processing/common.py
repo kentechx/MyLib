@@ -28,7 +28,7 @@ def angle_deficiency(vs: np.ndarray, fs: np.ndarray):
     return angle_def
 
 
-def detect_spikes(vs: np.ndarray, fs: np.ndarray, thre_angle_def: float = 15.):
+def detect_spikes(vs: np.ndarray, fs: np.ndarray, thre_angle_def: float = 19.):
     """
     Detect spikes in the mesh.
     :param thre_angle_def: The threshold of angle deficiency, in degree.
@@ -43,11 +43,49 @@ def detect_spikes(vs: np.ndarray, fs: np.ndarray, thre_angle_def: float = 15.):
     return vids
 
 
+def detect_highly_creased_edges(vs: np.ndarray, fs: np.ndarray, thre_angle: float = 46.):
+    adj_tt, _ = igl.triangle_triangle_adjacency(fs)
+    angles = get_signed_dihedral_angles(vs, fs)
+    angles = np.abs(angles)
+    i, j = np.where(angles < np.deg2rad(thre_angle))
+    fids = np.unique(np.concatenate([i, adj_tt[i, j]]))
+    # ret = igl.sharp_edges(vs, fs, np.deg2rad(thre_angle))
+    # vids = np.unique(ret[0])
+    return fids
+
+
+def detect_spike_and_crease(vs: np.ndarray, fs: np.ndarray, spike_thre=19., creased_thre=46.):
+    vids = detect_spikes(vs, fs, spike_thre)
+    _fids = detect_highly_creased_edges(vs, fs, creased_thre)
+    vids = np.union1d(vids, np.unique(fs[_fids]))
+    return vids
+
+
 def get_all_boundary_vids(fs):
     bs = igl.all_boundary_loop(fs)
     if len(bs) == 0:
         return np.array([], dtype=int)
     return np.concatenate(bs)
+
+
+def get_signed_dihedral_angles(vs: np.ndarray, fs: np.ndarray):
+    """
+    The dihedral angle is negative if the two adjacent faces form a convex angle.
+    :return:
+    """
+    # adjacent face
+    adj_tt, _ = igl.triangle_triangle_adjacency(fs)
+    face_centers = igl.barycenter(vs, fs)
+    face_normals = igl.per_face_normals(vs, fs, np.ones((len(fs), 3), dtype=vs.dtype) / 3.)
+
+    # face dihedral angle
+    face_dihedral_angles = np.arccos(
+        np.clip((face_normals[:, None, :] * face_normals[adj_tt]).sum(-1), -1., 1.))  # (n, 3)
+    face_dihedral_angles[adj_tt < 0] = 0
+    face_dihedral_angles = (np.pi - face_dihedral_angles).clip(0, np.pi)
+    is_convex = ((face_centers[adj_tt] - face_centers[:, None, :]) * face_normals[:, None, :]).sum(-1) < 1e-8  # (n, 3)
+    face_dihedral_angles[is_convex] *= -1
+    return face_dihedral_angles
 
 
 def get_vv_adj_list(fs, nv: int = None) -> List[List[int]]:
@@ -78,11 +116,12 @@ def get_vv_adj_list_python(fs, nv: int = None) -> List[List[int]]:
     return [list(i) for i in vv_adj]
 
 
-def get_vertex_neighborhood(fs: np.ndarray, vids: np.ndarray, order: int = 1):
+def get_vertex_neighborhood(fs: np.ndarray, vids: np.ndarray, order: int = 1, vv_adj: List[List[int]] = None):
     """
     Given vertex ids, get the neighborhood of the vertices. The neighborhood does not include the vertex itself.
     """
-    vv_adj = get_vv_adj_list(fs)
+    if vv_adj is None:
+        vv_adj = get_vv_adj_list(fs)
     visited = np.zeros(len(vv_adj), dtype=bool)
     visited[vids] = True
     nei_vids = np.unique(np.concatenate([vv_adj[i] for i in vids]))
@@ -454,6 +493,13 @@ def solve_laplacian_smooth(v_attrs: np.ndarray, L: scipy.sparse.csr_matrix,
     return v_attrs
 
 
+def orient_faces_o3d(vs: np.ndarray, fs: np.ndarray):
+    import open3d as o3d
+    m = o3d.geometry.TriangleMesh(o3d.utility.Vector3dVector(vs), o3d.utility.Vector3iVector(fs))
+    m.orient_triangles()
+    return np.asarray(m.triangles)
+
+
 def remove_low_valence_faces(vs: np.ndarray, fs: np.ndarray, remove_unreferenced: bool = True) -> [np.ndarray,
                                                                                                    np.ndarray]:
     """
@@ -522,22 +568,24 @@ def remove_non_manifold(vs: np.ndarray, fs: np.ndarray):
     return np.asarray(m.vertices), out_fs
 
 
-def remove_spike(vs: np.ndarray, fs: np.ndarray, thre_angle_def: float = 15.):
+def remove_spikes(vs: np.ndarray, fs: np.ndarray, reserve_boundary=True, spike_thre=19., creased_thre=46.):
     """
-    :param thre_angle_def: threshold angle deficiency, in degree.
+    :param spike_thre: in degree
+    :param creased_thre: in degree
     :return:
     """
     # detect spikes
-    vids = detect_spikes(vs, fs, thre_angle_def)
+    vids = detect_spike_and_crease(vs, fs, spike_thre, creased_thre)
 
     # select vertices
     bvids = get_all_boundary_vids(fs)
     vids = np.setdiff1d(vids, bvids)
+    vv_adj_list = get_vv_adj_list(fs, len(vs))
 
     if len(vids) == 0:
         return False, vs.copy(), fs.copy()
 
-    nei_vids = get_vertex_neighborhood(fs, vids, order=2)
+    nei_vids = get_vertex_neighborhood(fs, vids, 2, vv_adj_list)
     vids = np.union1d(vids, nei_vids)
 
     # smooth the selected vertices
@@ -545,24 +593,30 @@ def remove_spike(vs: np.ndarray, fs: np.ndarray, thre_angle_def: float = 15.):
     Q = igl.harmonic_weights_integrated_from_laplacian_and_mass(L, M, 2)
 
     a = np.full(len(vs), 0.)  # alpha
-    a[vids] = 0.05
+    a[vids] = 0.01
     a[bvids] = 0
     a = scipy.sparse.diags(a)
     out_vs = scipy.sparse.linalg.spsolve(a * Q + M - a * M, (M - a * M) @ vs)
+    out_vs = np.ascontiguousarray(out_vs)
 
     # detect spikes
-    vids = detect_spikes(out_vs, fs, thre_angle_def)
+    vids = detect_spike_and_crease(out_vs, fs, spike_thre, creased_thre)
     if len(vids) == 0:
         return True, out_vs, fs.copy()
 
-    nei_vids = get_vertex_neighborhood(fs, vids, order=2)
+    nei_vids = get_vertex_neighborhood(fs, vids, 1, vv_adj_list)
     vids = np.union1d(vids, nei_vids)
 
     # select faces
-    VF, NI = igl.vertex_triangle_adjacency(fs, len(vs))
-    sel_fids = []
-    for v in vids:
-        sel_fids.extend(VF[NI[v]:NI[v + 1]])
+    sel_fids = get_fids_from_vids(fs, vids)
+    # VF, NI = igl.vertex_triangle_adjacency(fs, len(vs))
+    # sel_fids = []
+    # for v in vids:
+    #     sel_fids.extend(VF[NI[v]:NI[v + 1]])
+
+    if reserve_boundary and len(bvids) > 0:
+        _vids = np.union1d(get_vertex_neighborhood(fs, bvids, 1, vv_adj_list), bvids)
+        sel_fids = np.setdiff1d(sel_fids, get_fids_from_vids(fs, _vids))
 
     # delete the selected faces
     out_fs = np.delete(fs, sel_fids, axis=0)
