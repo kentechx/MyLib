@@ -18,6 +18,31 @@ def o3d_to_trimesh(o3d_m, process=True) -> trimesh.Trimesh:
     return trimesh.Trimesh(vertices=np.asarray(o3d_m.vertices), faces=np.asarray(o3d_m.triangles), process=process)
 
 
+def angle_deficiency(vs: np.ndarray, fs: np.ndarray):
+    angles = igl.internal_angles(vs, fs)
+    angle_ind = fs.reshape(-1)
+    angles = angles.reshape(-1)
+    angle_def = np.zeros(len(vs))
+    np.add.at(angle_def, angle_ind, angles)
+    angle_def = 2 * np.pi - angle_def
+    return angle_def
+
+
+def detect_spikes(vs: np.ndarray, fs: np.ndarray, thre_angle_def: float = 15.):
+    """
+    Detect spikes in the mesh.
+    :param thre_angle_def: The threshold of angle deficiency, in degree.
+    """
+    angle_def = angle_deficiency(vs, fs)
+    vids = np.where(angle_def > np.deg2rad(thre_angle_def))[0]
+    if len(vids) == 0:
+        return np.array([], dtype=int)
+
+    bvids = get_all_boundary_vids(fs)
+    vids = np.setdiff1d(vids, bvids)
+    return vids
+
+
 def get_all_boundary_vids(fs):
     bs = igl.all_boundary_loop(fs)
     if len(bs) == 0:
@@ -464,9 +489,10 @@ def remove_non_max_face_components(vs, fs):
     ls = igl.face_components(fs)
     cs = np.bincount(ls)
     if len(cs) == 1:
-        return vs, fs
+        out_vs, out_fs, _, _ = igl.remove_unreferenced(vs, fs)
+    else:
+        out_vs, out_fs, _, _ = igl.remove_unreferenced(vs, fs[ls == np.argmax(cs)])
 
-    out_vs, out_fs, _, _ = igl.remove_unreferenced(vs, fs[ls == np.argmax(cs)])
     return out_vs, out_fs
 
 
@@ -494,6 +520,73 @@ def remove_non_manifold(vs: np.ndarray, fs: np.ndarray):
     # orient triangles
     out_fs, c = igl.bfs_orient(np.asarray(m.triangles))
     return np.asarray(m.vertices), out_fs
+
+
+def remove_spike(vs: np.ndarray, fs: np.ndarray, thre_angle_def: float = 15.):
+    """
+    :param thre_angle_def: threshold angle deficiency, in degree.
+    :return:
+    """
+    # detect spikes
+    vids = detect_spikes(vs, fs, thre_angle_def)
+
+    # select vertices
+    bvids = get_all_boundary_vids(fs)
+    vids = np.setdiff1d(vids, bvids)
+
+    if len(vids) == 0:
+        return False, vs.copy(), fs.copy()
+
+    nei_vids = get_vertex_neighborhood(fs, vids, order=2)
+    vids = np.union1d(vids, nei_vids)
+
+    # smooth the selected vertices
+    L, M = robust_laplacian(vs, fs, delaunay=False)
+    Q = igl.harmonic_weights_integrated_from_laplacian_and_mass(L, M, 2)
+
+    a = np.full(len(vs), 0.)  # alpha
+    a[vids] = 0.05
+    a[bvids] = 0
+    a = scipy.sparse.diags(a)
+    out_vs = scipy.sparse.linalg.spsolve(a * Q + M - a * M, (M - a * M) @ vs)
+
+    # detect spikes
+    vids = detect_spikes(out_vs, fs, thre_angle_def)
+    if len(vids) == 0:
+        return True, out_vs, fs.copy()
+
+    nei_vids = get_vertex_neighborhood(fs, vids, order=2)
+    vids = np.union1d(vids, nei_vids)
+
+    # select faces
+    VF, NI = igl.vertex_triangle_adjacency(fs, len(vs))
+    sel_fids = []
+    for v in vids:
+        sel_fids.extend(VF[NI[v]:NI[v + 1]])
+
+    # delete the selected faces
+    out_fs = np.delete(fs, sel_fids, axis=0)
+
+    # fill holes
+    bs = igl.all_boundary_loop(fs)
+    new_fids = []
+    for b in igl.all_boundary_loop(out_fs):
+        is_new = True
+        for _b in bs:
+            if len(np.intersect1d(b, _b)) > 0:
+                is_new = False
+                break
+        if is_new:
+            nf = len(out_fs)
+            out_fs = close_hole(out_vs, out_fs, b)
+            new_fids.extend(list(range(nf, len(out_fs))))
+    if len(new_fids) > 0:
+        nv = len(out_vs)
+        out_vs, out_fs, FI = triangulation_refine_leipa(out_vs, out_fs, np.asarray(new_fids))
+        out_vs = mesh_fair_laplacian_energy(out_vs, out_fs, np.arange(nv, len(out_vs)), 0.05)
+    out_vs, out_fs = remove_non_max_face_components(out_vs, out_fs)
+
+    return True, out_vs, out_fs
 
 
 def deform_arap_igl(vertices: np.ndarray, faces: np.ndarray, handle_id: np.ndarray, handle_co: np.ndarray):
