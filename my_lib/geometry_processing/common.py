@@ -639,6 +639,8 @@ def remove_spikes(vs: np.ndarray, fs: np.ndarray, reserve_boundary=True, spike_t
         out_vs, out_fs, FI = triangulation_refine_leipa(out_vs, out_fs, np.asarray(new_fids))
         out_vs = mesh_fair_laplacian_energy(out_vs, out_fs, np.arange(nv, len(out_vs)), 0.05)
     out_vs, out_fs = remove_non_max_face_components(out_vs, out_fs)
+    out_fs = igl.collapse_small_triangles(out_vs, out_fs, 1e-8)
+    out_vs, out_fs, _, _ = igl.remove_unreferenced(out_vs, out_fs)
 
     return True, out_vs, out_fs
 
