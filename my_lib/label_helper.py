@@ -1,7 +1,6 @@
 import os
 
 import numpy as np
-import cv2
 import json
 from typing import List, Dict, Any
 from .utils import _test_time
@@ -193,6 +192,7 @@ class LabelmeHelper:
 
     @staticmethod
     def show_labels(image:np.ndarray, shapes:List)->None:
+        import cv2
         for s in shapes:
             pts = np.array(s['points']).astype('i4')
             isClose = True
