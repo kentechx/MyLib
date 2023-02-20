@@ -202,7 +202,7 @@ def fan_triangulation(vids: np.ndarray) -> np.ndarray:
     return fids
 
 
-def close_holes(vs: np.ndarray, fs: np.ndarray, hole_len_thr: float = 10000.) -> np.ndarray:
+def close_holes(vs: np.ndarray, fs: np.ndarray, hole_len_thr: float = 10000., fast=True) -> np.ndarray:
     """
     Close holes whose length is less than a given threshold.
     :param edge_len_thr:
@@ -215,7 +215,7 @@ def close_holes(vs: np.ndarray, fs: np.ndarray, hole_len_thr: float = 10000.) ->
         for b in igl.all_boundary_loop(out_fs):
             hole_edge_len = np.linalg.norm(vs[np.roll(b, -1)] - vs[b], axis=1).sum()
             if len(b) >= 3 and hole_edge_len <= hole_len_thr:
-                out_fs = close_hole(vs, out_fs, b)
+                out_fs = close_hole(vs, out_fs, b, fast)
                 updated = True
 
         if not updated:
