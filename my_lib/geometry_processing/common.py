@@ -548,7 +548,7 @@ def remove_low_valence_faces(vs: np.ndarray, fs: np.ndarray, remove_unreferenced
 
 
 def remove_non_max_face_components(vs, fs):
-    ls = igl.face_components(fs)
+    ls = igl.facet_components(fs)
     cs = np.bincount(ls)
     if len(cs) == 1:
         out_vs, out_fs, _, _ = igl.remove_unreferenced(vs, fs)
