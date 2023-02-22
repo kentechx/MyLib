@@ -277,6 +277,7 @@ def close_hole(vs: np.ndarray, fs: np.ndarray, hole_vids, fast=True) -> np.ndarr
             geo_dists = np.roll(np.roll(hole_edge_len, -i).cumsum(), i)
             geo_dists = np.roll(np.minimum(geo_dists, hole_len - geo_dists), 1)
             concave_degree = eu_dists / (geo_dists ** 2 + _epsilon)
+            concave_degree[i] = -np.inf  # there may exist two duplicate vertices
 
             _idx = 1
             j = np.argsort(concave_degree)[_idx]
