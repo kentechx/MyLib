@@ -142,7 +142,7 @@ def get_fids_from_vids(fs: np.ndarray, vids: np.ndarray):
     return np.where(np.all(selected[fs], axis=1))[0]
 
 
-def get_mollified_edge_length(vs: np.ndarray, fs: np.ndarray, mollify_factor=1e-6) -> np.ndarray:
+def get_mollified_edge_length(vs: np.ndarray, fs: np.ndarray, mollify_factor=1e-5) -> np.ndarray:
     lin = igl.edge_lengths(vs, fs)
     if mollify_factor == 0:
         return lin
@@ -316,7 +316,7 @@ def uniform_laplacian_matrix(fs: np.ndarray, nv: int, normalize: bool = False, k
 
 
 def cot_laplacian_matrix(vs: np.ndarray, fs: np.ndarray, normalize: bool = False,
-                         k: int = 1, mollify_factor=1e-6) -> scipy.sparse.csr_matrix:
+                         k: int = 1, mollify_factor=1e-5) -> scipy.sparse.csr_matrix:
     """ The off-diagnoals are $-1/2 * (\cot \alpha_{ij} + \cot \beta_{ij})$ """
     l = get_mollified_edge_length(vs, fs, mollify_factor)
     L = -igl.cotmatrix_intrinsic(l, fs).asformat('csr')
@@ -333,7 +333,7 @@ def cot_laplacian_matrix(vs: np.ndarray, fs: np.ndarray, normalize: bool = False
     return L
 
 
-def robust_laplacian(vs, fs, mollify_factor=1e-6, delaunay=True) -> \
+def robust_laplacian(vs, fs, mollify_factor=1e-5, delaunay=True) -> \
         Tuple[scipy.sparse.csc_matrix, scipy.sparse.csc_matrix]:
     """
     Get a laplcian with iDT (intrinsic Delaunay triangulation) and intrinsic mollification.
