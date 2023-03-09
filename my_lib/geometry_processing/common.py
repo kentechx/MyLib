@@ -520,8 +520,8 @@ def orient_faces_o3d(vs: np.ndarray, fs: np.ndarray):
     return np.asarray(m.triangles)
 
 
-def remove_low_valence_faces(vs: np.ndarray, fs: np.ndarray, remove_unreferenced: bool = True) -> [np.ndarray,
-                                                                                                   np.ndarray]:
+def remove_low_valence_faces(vs: np.ndarray, fs: np.ndarray, remove_unreferenced: bool = True, itr=10) -> [np.ndarray,
+                                                                                                           np.ndarray]:
     """
     Remove faces whose valences <= 1, i.e. at least two edges of the face are border edges.
     :return:
@@ -531,22 +531,25 @@ def remove_low_valence_faces(vs: np.ndarray, fs: np.ndarray, remove_unreferenced
     # remove faces whose all vertices are on the boundary
     out_vs = vs.copy()
     out_fs = fs.copy()
-    is_boundary = np.zeros(len(out_vs), dtype=bool)
-    b = igl.all_boundary_loop(out_fs)
-    if len(b) == 0:
-        return out_vs, out_fs
+    for _ in range(itr):
+        is_boundary = np.zeros(len(out_vs), dtype=bool)
+        b = igl.all_boundary_loop(out_fs)
+        if len(b) == 0:
+            return out_vs, out_fs
 
-    b_vids = np.concatenate(b)
-    if len(b_vids) == 0:
-        return out_vs, out_fs
+        b_vids = np.concatenate(b)
+        if len(b_vids) == 0:
+            return out_vs, out_fs
 
-    is_boundary[b_vids] = True
-    invalid_fids = np.where(np.all(is_boundary[out_fs], axis=1))[0]
-    if len(invalid_fids) > 0:
+        is_boundary[b_vids] = True
+        invalid_fids = np.where(np.all(is_boundary[out_fs], axis=1))[0]
+        if len(invalid_fids) == 0:
+            break
+
         out_fs = out_fs[np.setdiff1d(np.arange(len(out_fs)), invalid_fids)]
 
-    if remove_unreferenced:
-        out_vs, out_fs, _, _ = igl.remove_unreferenced(out_vs, out_fs)
+        if remove_unreferenced:
+            out_vs, out_fs, _, _ = igl.remove_unreferenced(out_vs, out_fs)
 
     return out_vs, out_fs
 
