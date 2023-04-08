@@ -889,7 +889,8 @@ def triangulation_refine_leipa(vs: np.ndarray, fs: np.ndarray, fids: np.ndarray,
     return out_vs, out_fs, FI
 
 
-def fill_refine_fair(vs, fs, hole_len_thr=10000, close_hole_fast=True, density_factor=np.sqrt(2), fair_alpha=0.05):
+def triangulate_refine_fair(vs, fs, hole_len_thr=10000, close_hole_fast=True, density_factor=np.sqrt(2),
+                            fair_alpha=0.05):
     # fill
     out_fs = close_holes(vs, fs, hole_len_thr, close_hole_fast)
     add_fids = np.arange(len(fs), len(out_fs))
