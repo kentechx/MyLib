@@ -343,7 +343,7 @@ def robust_laplacian(vs, fs, mollify_factor=1e-5, delaunay=True) -> \
     lin = get_mollified_edge_length(vs, fs, mollify_factor)
     fin = fs
     if delaunay:
-        lin, fin = igl.intrinsic_delaunay_triangulation(lin, fs)
+        lin, fin = igl.intrinsic_delaunay_triangulation(lin.astype('f8'), fs)
     L = -igl.cotmatrix_intrinsic(lin, fin)
     M = igl.massmatrix_intrinsic(lin, fin, igl.MASSMATRIX_TYPE_VORONOI)
     return L, M
@@ -878,7 +878,7 @@ def triangulation_refine_leipa(vs: np.ndarray, fs: np.ndarray, fids: np.ndarray,
 
         # delaunay
         l = get_mollified_edge_length(out_vs, out_fs[all_sel_fids])
-        _, add_fs = igl.intrinsic_delaunay_triangulation(l, out_fs[all_sel_fids])
+        _, add_fs = igl.intrinsic_delaunay_triangulation(l.astype('f8'), out_fs[all_sel_fids])
         out_fs[all_sel_fids] = add_fs
 
     # update FI, remove deleted faces
