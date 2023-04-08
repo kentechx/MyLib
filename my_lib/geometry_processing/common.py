@@ -833,7 +833,6 @@ def triangulation_refine_leipa(vs: np.ndarray, fs: np.ndarray, fids: np.ndarray,
         return out_vs, out_fs, np.arange(len(fs))
 
     # initialize sigma
-    # vv_adj_list = get_vv_adj_list(out_fs, len(vs))
     edges = igl.edges(np.delete(out_fs, fids, axis=0))  # calculate the edge length without faces to be refined
     edges = np.concatenate([edges, edges[:, [1, 0]]], axis=0)
     edge_lengths = np.linalg.norm(out_vs[edges[:, 0]] - out_vs[edges[:, 1]], axis=-1)
@@ -844,7 +843,7 @@ def triangulation_refine_leipa(vs: np.ndarray, fs: np.ndarray, fids: np.ndarray,
                                          minlength=len(out_vs))[v_degrees > 0] / v_degrees[v_degrees > 0]
     if np.any(v_sigma == 0):
         v_sigma[v_sigma == 0] = np.median(v_sigma[v_sigma != 0])
-        print("Warning: some vertices have no adjacent faces, the refinement may be incorrect.")
+        # print("Warning: some vertices have no adjacent faces, the refinement may be incorrect.")
 
     all_sel_fids = np.copy(fids)
     for _ in range(100):
