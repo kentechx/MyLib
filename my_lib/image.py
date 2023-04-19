@@ -86,7 +86,6 @@ class ImageManipulator:
     @staticmethod
     def visualize_switch(img1, img2):
         import cv2
-        from skimage import img_as_ubyte
         flag = 1
         img = img1
         while 1:
