@@ -4,7 +4,7 @@ from PIL import Image, ImageOps
 from typing import List, Dict, Any
 
 
-class ImageManipulator:
+class ImageHelper:
     def __init__(self):
         pass
 
