@@ -1,7 +1,33 @@
 import cv2
 import numpy as np
 from PIL import Image, ImageOps
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Union
+
+
+def exists(val):
+    return val is not None
+
+
+def img_to_u1(img):
+    if img.max() <= 1.:
+        img = (img * 255).astype('u1')
+    else:
+        img = img.astype('u1')
+    return img
+
+
+def bbox_to_xyxy(bboxes, h, w):
+    if bboxes.max() <= 1.:
+        bboxes = bboxes * np.array([w, h, w, h])
+        bboxes = bboxes.astype('i4')
+    else:
+        bboxes = bboxes.astype('i4')
+    return bboxes
+
+
+def label_to_str(labels):
+    labels = np.array(labels, dtype='str')
+    return labels
 
 
 class ImageHelper:
@@ -55,6 +81,32 @@ class ImageHelper:
         return np.array(img), np.array(mask)
 
     @staticmethod
+    def draw_bbox(img: np.ndarray, bboxes: np.ndarray, thickness=2, is_opaque=False, alpha=0.5):
+        import bbox_visualizer as bbv
+        import seaborn as sns
+        colors = sns.color_palette('hls', len(bboxes))
+        colors = [[int(c * 255) for c in color] for color in colors]
+        img = img_to_u1(img)
+        for box, color in zip(bboxes, colors):
+            img = bbv.draw_rectangle(img, bbox_to_xyxy(box, *img.shape[:2]),
+                               bbox_color=color, thickness=thickness, is_opaque=is_opaque, alpha=alpha)
+        return img
+
+    @staticmethod
+    def draw_bbox_labels(img: np.ndarray, bboxes: np.ndarray, labels: List[str] = None,
+                         bbox_color: Union[List[List[int]], List[int], None] = None,
+                         thickness=2):
+        import bbox_visualizer as bbv
+        img = ImageHelper.draw_bbox(img, bboxes, thickness)
+        h, w = img.shape[:2]
+
+        if exists(labels):
+            # auto color
+            img = bbv.add_multiple_labels(img, label_to_str(labels), bbox_to_xyxy(bboxes, h, w))
+
+        return img
+
+    @staticmethod
     def remove_small_components(image: np.ndarray, thresh=10):
         """
         :param image:  (h, w), in range (0, c), where `c` is the max class label
@@ -69,19 +121,6 @@ class ImageHelper:
             if idx[0].shape[0] < thresh:
                 ret_image[idx] = 0
         return ret_image
-
-    @staticmethod
-    def blend(img1: np.ndarray, alphas, img2):
-        """
-        :param img1: of shape (h, w, 3)
-        :param alphas: of shape (h, w) or (h, w, 3)
-        :param img2: of the same shape as `img1`
-        :return:
-        """
-        alphas = alphas.astype('f4')
-        if len(alphas.shape) == 2:
-            alphas = alphas[..., None]
-        return (img1 * alphas + img2 * (1 - alphas)).astype('u1')
 
     @staticmethod
     def visualize_switch(img1, img2):
@@ -115,3 +154,8 @@ class ImageHelper:
     def visualize(img):
         cv2.imshow('', img)
         cv2.waitKey()
+
+    @staticmethod
+    def visualize_with_bbox(img, bbox, labels=None):
+        img = ImageHelper.draw_bbox_labels(img, bbox, labels)
+        ImageHelper.visualize(img)
