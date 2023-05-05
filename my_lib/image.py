@@ -8,6 +8,13 @@ def exists(val):
     return val is not None
 
 
+def generate_colors(n):
+    import seaborn as sns
+    colors = sns.color_palette('hls', n)
+    colors = [[int(c * 255) for c in color] for color in colors]
+    return colors
+
+
 def img_to_u1(img):
     if img.max() <= 1.:
         img = (img * 255).astype('u1')
@@ -28,6 +35,29 @@ def bbox_to_xyxy(bboxes, h, w):
 def label_to_str(labels):
     labels = np.array(labels, dtype='str')
     return labels
+
+
+def box_label(im, box, label='', color=(128, 128, 128), txt_color=(255, 255, 255)):
+    # Add one xyxy box to image with label
+    lw = 3
+    if isinstance(box, np.ndarray):
+        box = box.tolist()
+    p1, p2 = (int(box[0]), int(box[1])), (int(box[2]), int(box[3]))
+    cv2.rectangle(im, p1, p2, color, thickness=lw, lineType=cv2.LINE_AA)
+    if label:
+        tf = max(lw - 1, 1)  # font thickness
+        w, h = cv2.getTextSize(label, 0, fontScale=0.5, thickness=tf)[0]  # text width, height
+        outside = p1[1] - h >= 3
+        p2 = p1[0] + w, p1[1] - h - 3 if outside else p1[1] + h + 3
+        cv2.rectangle(im, p1, p2, color, -1, cv2.LINE_AA)  # filled
+        cv2.putText(im,
+                    label, (p1[0], p1[1] - 2 if outside else p1[1] + h + 2),
+                    0,
+                    0.5,
+                    txt_color,
+                    thickness=0,
+                    lineType=cv2.LINE_AA)
+    return im
 
 
 class ImageHelper:
@@ -81,28 +111,17 @@ class ImageHelper:
         return np.array(img), np.array(mask)
 
     @staticmethod
-    def draw_bbox(img: np.ndarray, bboxes: np.ndarray, thickness=2, is_opaque=False, alpha=0.5):
-        import bbox_visualizer as bbv
-        import seaborn as sns
-        colors = sns.color_palette('hls', len(bboxes))
-        colors = [[int(c * 255) for c in color] for color in colors]
-        img = img_to_u1(img)
-        for box, color in zip(bboxes, colors):
-            img = bbv.draw_rectangle(img, bbox_to_xyxy(box, *img.shape[:2]),
-                               bbox_color=color, thickness=thickness, is_opaque=is_opaque, alpha=alpha)
-        return img
-
-    @staticmethod
-    def draw_bbox_labels(img: np.ndarray, bboxes: np.ndarray, labels: List[str] = None,
-                         bbox_color: Union[List[List[int]], List[int], None] = None,
-                         thickness=2):
-        import bbox_visualizer as bbv
-        img = ImageHelper.draw_bbox(img, bboxes, thickness)
+    def draw_bbox_labels(img: np.ndarray, bboxes: np.ndarray, labels: List[str] = None):
+        # img = ImageHelper.draw_bbox(img, bboxes, thickness)
         h, w = img.shape[:2]
-
+        img = img_to_u1(img)
         if exists(labels):
-            # auto color
-            img = bbv.add_multiple_labels(img, label_to_str(labels), bbox_to_xyxy(bboxes, h, w))
+            labels = label_to_str(labels)
+        else:
+            labels = [None for _ in range(len(bboxes))]
+
+        for bbox, label, color in zip(bbox_to_xyxy(bboxes, h, w), labels, generate_colors(len(bboxes))):
+            img = box_label(img, bbox, label, color)
 
         return img
 
