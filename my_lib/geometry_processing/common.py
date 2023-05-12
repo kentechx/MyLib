@@ -800,17 +800,20 @@ def mesh_fair_harmonic_local(vs: np.ndarray, fs: np.ndarray, vids: np.ndarray, c
     return out_vs
 
 
-def mesh_fair_laplacian_energy(vs: np.ndarray, fs: np.ndarray, vids: np.ndarray, alpha=1e-4, k=2):
+def mesh_fair_laplacian_energy(vs: np.ndarray, fs: np.ndarray, vids: np.ndarray, alpha=1e-4, k=2, v_attr=None):
     import robust_laplacian
     if len(vids) == 0:
         return vs
+    if v_attr is None:
+        v_attr = vs
+
     L, M = robust_laplacian.mesh_laplacian(vs, fs)
     Q = igl.harmonic_weights_integrated_from_laplacian_and_mass(L, M, k)
 
     a = np.full(len(vs), 0.)  # alpha
     a[vids] = alpha
     a = scipy.sparse.diags(a)
-    out_vs = scipy.sparse.linalg.spsolve(a * Q + M - a * M, (M - a * M) @ vs)
+    out_vs = scipy.sparse.linalg.spsolve(a * Q + M - a * M, (M - a * M) @ v_attr)
     return np.ascontiguousarray(out_vs)
 
 
