@@ -127,8 +127,8 @@ class MeshHelper:
     @staticmethod
     def trimesh_to_o3d(g: Union[trimesh.parent.Geometry3D, o3d.geometry.Geometry3D]):
         if isinstance(g, trimesh.Trimesh):
-            m = o3d.geometry.TriangleMesh(o3d.utility.Vector3dVector(g.vertices),
-                                          o3d.utility.Vector3iVector(g.faces))
+            m = o3d.geometry.TriangleMesh(o3d.utility.Vector3dVector(np.array(g.vertices)),
+                                          o3d.utility.Vector3iVector(np.array(g.faces)))
             m.compute_vertex_normals()
             return m
         elif isinstance(g, trimesh.PointCloud):
