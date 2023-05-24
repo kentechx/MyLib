@@ -126,6 +126,16 @@ class ImageHelper:
         return img
 
     @staticmethod
+    def draw_points(img, points):
+        # cv2 plot points
+        img = img.copy()
+        for pt in points:
+            cv2.circle(img, (int(pt[0]), int(pt[1])), 1, (0, 255, 0), -1)
+        cv2.imshow('img', img)
+        cv2.waitKey()
+        cv2.destroyAllWindows()
+
+    @staticmethod
     def remove_small_components(image: np.ndarray, thresh=10):
         """
         :param image:  (h, w), in range (0, c), where `c` is the max class label
