@@ -126,7 +126,7 @@ class ImageHelper:
         return img
 
     @staticmethod
-    def draw_points(img, points):
+    def visualize_points(img, points):
         # cv2 plot points
         img = img.copy()
         for pt in points:
