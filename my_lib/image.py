@@ -156,6 +156,7 @@ class ImageHelper:
                     flag = 1
                     img = img1
             else:
+                cv2.destroyAllWindows()
                 break
 
     @staticmethod
@@ -173,6 +174,7 @@ class ImageHelper:
     def visualize(img):
         cv2.imshow('', img)
         cv2.waitKey()
+        cv2.destroyAllWindows()
 
     @staticmethod
     def visualize_with_bbox(img, bbox, labels=None):
