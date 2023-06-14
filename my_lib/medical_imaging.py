@@ -55,7 +55,10 @@ class MedicalImagingHelper:
         # label: (d, h, w)
         n_row = get_grid_size(n_images)
         n_col = n_row
-        start_i, end_i = get_start_end_frame(labels, axis)
+        if exists(labels):
+            start_i, end_i = get_start_end_frame(labels, axis)
+        else:
+            start_i, end_i = 0, len(data)
         fig, axes = plt.subplots(n_row, n_col, figsize=(n_col * 2, n_row * 2))
         step = (end_i - start_i + n_images - 1) // n_images
         for i, i_frame in enumerate(range(start_i, end_i, step)):
