@@ -1,6 +1,7 @@
 import math
 import matplotlib
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 def exists(val):
@@ -17,17 +18,31 @@ def get_grid_size(n):
     return math.ceil(math.sqrt(n))
 
 
+def is_onehot(labels):
+    return labels.ndim == 4
+
+
+def get_start_end_frame(labels: np.ndarray, axis=0):
+    if is_onehot(labels):
+        labels = labels.max(axis=0)
+    dims = set(range(labels.ndim)) - {axis}
+    labels = labels.max(axis=tuple(dims))
+    idx = np.where(labels > 0)[0]
+    return idx.min(), idx.max()
+
+
 class MedicalImagingHelper:
 
     @staticmethod
     def show_ct_label(data, labels, axis=0, n_images=16):
         n_row = get_grid_size(n_images)
         n_col = n_row
+        start_i, end_i = get_start_end_frame(labels, axis)
         fig, axes = plt.subplots(n_row, n_col, figsize=(n_col * 2, n_row * 2))
-        step = data.shape[axis] // n_images
-        for i in range(n_images):
+        step = (end_i - start_i + n_images - 1) // n_images
+        for i, i_frame in enumerate(range(start_i, end_i, step)):
             ax = axes[i // n_col, i % n_col]
-            ax.imshow(data[i * step], cmap='gray')
+            ax.imshow(data[i_frame], cmap='gray')
             ax.imshow(labels[i * step], cmap='jet', alpha=0.3)
             ax.axis('off')
 
@@ -40,13 +55,12 @@ class MedicalImagingHelper:
         # label: (d, h, w)
         n_row = get_grid_size(n_images)
         n_col = n_row
+        start_i, end_i = get_start_end_frame(labels, axis)
         fig, axes = plt.subplots(n_row, n_col, figsize=(n_col * 2, n_row * 2))
-        step = data.shape[axis] // n_images
-        for i in range(n_images):
+        step = (end_i - start_i + n_images - 1) // n_images
+        for i, i_frame in enumerate(range(start_i, end_i, step)):
             ax = axes[i // n_col, i % n_col]
-            ax.imshow(data[i * step], cmap='gray')
-            # if exists(labels):
-            #     ax.imshow(labels[i * step], cmap='jet', alpha=0.3)
+            ax.imshow(data[i_frame], cmap='gray')
             ax.axis('off')
 
         plt.tight_layout()
