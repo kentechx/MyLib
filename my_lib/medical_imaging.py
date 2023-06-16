@@ -14,12 +14,26 @@ def default(*vals):
             return val
 
 
+def img_to_u1(img):
+    if img.max() <= 1.:
+        img = (img * 255).astype('u1')
+    else:
+        img = img.astype('u1')
+    return img
+
+
 def get_grid_size(n):
     return math.ceil(math.sqrt(n))
 
 
 def is_onehot(labels):
     return labels.ndim == 4
+
+
+def get_frame(data, i, axis=0):
+    idx = [slice(None)] * data.ndim
+    idx[axis] = i
+    return data[tuple(idx)]
 
 
 def get_start_end_frame(labels: np.ndarray, axis=0):
@@ -42,8 +56,9 @@ class MedicalImagingHelper:
         step = (end_i - start_i + n_images - 1) // n_images
         for i, i_frame in enumerate(range(start_i, end_i, step)):
             ax = axes[i // n_col, i % n_col]
-            ax.imshow(data[i_frame], cmap='gray')
-            ax.imshow(labels[i * step], cmap='jet', alpha=0.3)
+            ax.imshow(get_frame(data, i_frame, axis), cmap='gray')
+            _labels = get_frame(labels, i_frame, axis)
+            ax.imshow(_labels, cmap='jet', alpha=np.where(_labels > 0, 0.3, 0))
             ax.axis('off')
 
         plt.tight_layout()
@@ -58,12 +73,12 @@ class MedicalImagingHelper:
         if exists(labels):
             start_i, end_i = get_start_end_frame(labels, axis)
         else:
-            start_i, end_i = 0, len(data)
+            start_i, end_i = 0, data.shape[axis]
         fig, axes = plt.subplots(n_row, n_col, figsize=(n_col * 2, n_row * 2))
         step = (end_i - start_i + n_images - 1) // n_images
         for i, i_frame in enumerate(range(start_i, end_i, step)):
             ax = axes[i // n_col, i % n_col]
-            ax.imshow(data[i_frame], cmap='gray')
+            ax.imshow(get_frame(data, i_frame, axis), cmap='gray')
             ax.axis('off')
 
         plt.tight_layout()
