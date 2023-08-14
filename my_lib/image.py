@@ -65,18 +65,6 @@ class ImageHelper:
         pass
 
     @staticmethod
-    def get_edge(mask, color=(255, 255, 255), thickness=None):
-        """
-        :param mask: (h, w)
-        :return: contour: (h, w, 3)
-        """
-        _, thresh_im = cv2.threshold(mask, 0.5, 255, cv2.THRESH_BINARY)
-        contours, _ = cv2.findContours(thresh_im, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        img_contour = np.zeros_like(mask)
-        cv2.drawContours(img_contour, contours, -1, color, thickness)  # -1 indicates all contours are drawn
-        return img_contour
-
-    @staticmethod
     def crop_with_mask(img: np.ndarray, mask: np.ndarray, margin=(50, 50)):
         """
         :param img:
@@ -124,6 +112,27 @@ class ImageHelper:
             img = box_label(img, bbox, label, color)
 
         return img
+
+    @staticmethod
+    def draw_mask_labels(img: np.ndarray, mask: np.ndarray, ignore_labels=[0]):
+        # mask: (h, w), uint8
+        out = img.copy()
+        ls = np.unique(mask)
+        colors = generate_colors(len(ls))
+        for l, color in zip(ls, colors):
+            if l in ignore_labels:
+                continue
+            # get contours
+            mask_l = np.zeros_like(mask, dtype=np.uint8)
+            mask_l[mask == l] = 1
+            contours, _ = cv2.findContours(mask_l, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+            # draw contours
+            cv2.drawContours(out, contours, -1, color, 1)
+            # draw label
+            for contour in contours:
+                x, y = contour[:, 0].mean(0).astype(int)
+                cv2.putText(out, str(l), (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
+        return out
 
     @staticmethod
     def visualize_points(img, points):
