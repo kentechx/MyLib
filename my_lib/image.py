@@ -161,19 +161,15 @@ class ImageHelper:
         return ret_image
 
     @staticmethod
-    def visualize_switch(img1, img2):
+    def visualize_switch(imgs: List):
         import cv2
-        flag = 1
-        img = img1
+        i = 0
+        img = imgs[i]
         while 1:
             cv2.imshow('', img)
             if cv2.waitKey(0) & 0xFF == ord(' '):
-                if flag == 1:
-                    flag = 2
-                    img = img2
-                else:
-                    flag = 1
-                    img = img1
+                i = (i + 1) % len(imgs)
+                img = imgs[i]
             else:
                 cv2.destroyAllWindows()
                 break
