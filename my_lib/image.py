@@ -130,8 +130,15 @@ class ImageHelper:
             cv2.drawContours(out, contours, -1, color, 1)
             # draw label
             for contour in contours:
+                font_scale = 0.5
+                thickness = 1
+                font_face = cv2.FONT_HERSHEY_SIMPLEX
+                text = str(l)
+                text_size = cv2.getTextSize(text, font_face, font_scale, thickness)[0]
                 x, y = contour[:, 0].mean(0).astype(int)
-                cv2.putText(out, str(l), (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
+                x, y = x - text_size[0] // 2, y + text_size[1] // 2
+                # cv2.rectangle(out, (x, y - text_size[1]), (x + text_size[0]+1, y+1), (0, 0, 0), -1)
+                cv2.putText(out, text, (x, y), font_face, font_scale, color, thickness)
         return out
 
     @staticmethod
