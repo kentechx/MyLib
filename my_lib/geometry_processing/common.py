@@ -906,3 +906,45 @@ def triangulate_refine_fair(vs, fs, hole_len_thr=10000, close_hole_fast=True, de
     # fairing
     out_vs = mesh_fair_laplacian_energy(out_vs, out_fs, add_vids, fair_alpha)
     return out_vs, out_fs
+
+
+def curve_point_mass(curve_pts):
+    """
+    The mass used in Laplace-Beltrami operator for curves.
+    See https://math.stackexchange.com/questions/138694/laplace-beltrami-operator-for-curves
+    """
+    mid_pts = 0.5 * (curve_pts[1:] + curve_pts[:-1])
+    mid_pts = np.r_[curve_pts[[0]], mid_pts, curve_pts[[-1]]]
+    mass = np.linalg.norm(mid_pts[1:] - mid_pts[:-1], axis=-1) + 1e-5
+    return mass
+
+
+def curve_laplacian(curve_pts):
+    """
+    The laplacian used in Laplace-Beltrami operator for curves.
+    See https://math.stackexchange.com/questions/138694/laplace-beltrami-operator-for-curves
+    """
+    n = len(curve_pts)
+    edge_len = np.linalg.norm(curve_pts[1:] - curve_pts[:-1], axis=-1) + 1e-5
+    # edge_len = np.r_[edge_len[0], edge_len, edge_len[-1]]
+
+    A = np.zeros((n, n))
+    A[np.arange(n - 1), np.arange(1, n)] = 1 / edge_len
+    A[np.arange(1, n), np.arange(n - 1)] = 1 / edge_len
+    D = np.diag(np.sum(A, axis=1))
+    return A - D
+
+
+def fair_curve(curve_pts, alphas):
+    L = curve_laplacian(curve_pts)
+    mass = curve_point_mass(curve_pts)
+    M = np.diag(mass)
+    invM = np.diag(1 / mass)
+    Q = L.T @ invM @ L
+
+    # a = np.full(len(curve_pts), 0.)  # alpha
+    # a[pids] = alpha
+    a = np.diag(alphas)
+    out_pts = np.linalg.solve(a @ Q + M - a @ M, (M - a @ M) @ curve_pts)
+
+    return out_pts
