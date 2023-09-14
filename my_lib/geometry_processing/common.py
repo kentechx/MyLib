@@ -908,36 +908,48 @@ def triangulate_refine_fair(vs, fs, hole_len_thr=10000, close_hole_fast=True, de
     return out_vs, out_fs
 
 
-def curve_point_mass(curve_pts):
+def curve_point_mass(curve_pts, closed=False):
     """
     The mass used in Laplace-Beltrami operator for curves.
     See https://math.stackexchange.com/questions/138694/laplace-beltrami-operator-for-curves
     """
-    mid_pts = 0.5 * (curve_pts[1:] + curve_pts[:-1])
-    mid_pts = np.r_[curve_pts[[0]], mid_pts, curve_pts[[-1]]]
-    mass = np.linalg.norm(mid_pts[1:] - mid_pts[:-1], axis=-1) + 1e-5
+    if closed:
+        n = len(curve_pts)
+        mid_pts = 0.5 * (curve_pts + curve_pts[np.arange(-1, n - 1) % n])
+        mass = np.linalg.norm(mid_pts - mid_pts[np.arange(1, n + 1) % n], axis=-1) + 1e-5
+    else:
+        mid_pts = 0.5 * (curve_pts[1:] + curve_pts[:-1])
+        mid_pts = np.r_[curve_pts[[0]], mid_pts, curve_pts[[-1]]]
+        mass = np.linalg.norm(mid_pts[1:] - mid_pts[:-1], axis=-1) + 1e-5
     return mass
 
 
-def curve_laplacian(curve_pts):
+def curve_laplacian(curve_pts, closed=False):
     """
     The laplacian used in Laplace-Beltrami operator for curves.
     See https://math.stackexchange.com/questions/138694/laplace-beltrami-operator-for-curves
     """
     n = len(curve_pts)
-    edge_len = np.linalg.norm(curve_pts[1:] - curve_pts[:-1], axis=-1) + 1e-5
-    # edge_len = np.r_[edge_len[0], edge_len, edge_len[-1]]
+    if closed:
+        edge_len = np.linalg.norm(curve_pts[np.arange(1, n + 1) % n] - curve_pts, axis=-1) + 1e-5
+        A = np.zeros((n, n))
+        A[np.arange(n), np.arange(1, n + 1) % n] = 1 / edge_len
+        A[np.arange(n), np.arange(-1, n - 1) % n] = 1 / edge_len[np.arange(-1, n - 1) % n]
+        D = np.diag(np.sum(A, axis=1))
+    else:
+        edge_len = np.linalg.norm(curve_pts[1:] - curve_pts[:-1], axis=-1) + 1e-5
+        # edge_len = np.r_[edge_len[0], edge_len, edge_len[-1]]
 
-    A = np.zeros((n, n))
-    A[np.arange(n - 1), np.arange(1, n)] = 1 / edge_len
-    A[np.arange(1, n), np.arange(n - 1)] = 1 / edge_len
-    D = np.diag(np.sum(A, axis=1))
+        A = np.zeros((n, n))
+        A[np.arange(n - 1), np.arange(1, n)] = 1 / edge_len
+        A[np.arange(1, n), np.arange(n - 1)] = 1 / edge_len
+        D = np.diag(np.sum(A, axis=1))
     return A - D
 
 
-def fair_curve(curve_pts, alphas):
-    L = curve_laplacian(curve_pts)
-    mass = curve_point_mass(curve_pts)
+def fair_curve(curve_pts, alphas, closed=False):
+    L = curve_laplacian(curve_pts, closed)
+    mass = curve_point_mass(curve_pts, closed)
     M = np.diag(mass)
     invM = np.diag(1 / mass)
     Q = L.T @ invM @ L
