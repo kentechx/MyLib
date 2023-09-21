@@ -591,6 +591,11 @@ def remove_non_manifold(vs: np.ndarray, fs: np.ndarray):
     return np.asarray(m.vertices), out_fs
 
 
+def remove_degenerated(fs: np.ndarray):
+    degenerated = (fs[:, 0] == fs[:, 1]) | (fs[:, 1] == fs[:, 2]) | (fs[:, 0] == fs[:, 2])
+    return fs[~degenerated]
+
+
 def remove_spikes(vs: np.ndarray, fs: np.ndarray, reserve_boundary=True, spike_thre=19., creased_thre=46.):
     """
     :param spike_thre: in degree
