@@ -813,7 +813,7 @@ def mesh_fair_laplacian_energy(vs: np.ndarray, fs: np.ndarray, vids: np.ndarray,
         v_attr = vs
 
     L, M = robust_laplacian.mesh_laplacian(vs, fs)
-    Q = igl.harmonic_weights_integrated_from_laplacian_and_mass(L, M, k)
+    Q = igl.harmonic_weights_integrated_from_laplacian_and_mass(-L, M, k)
 
     a = np.full(len(vs), 0.)  # alpha
     a[vids] = alpha
