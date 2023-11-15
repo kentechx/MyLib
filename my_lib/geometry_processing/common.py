@@ -551,6 +551,9 @@ def remove_low_valence_faces(vs: np.ndarray, fs: np.ndarray, remove_unreferenced
         if remove_unreferenced:
             out_vs, out_fs, _, _ = igl.remove_unreferenced(out_vs, out_fs)
 
+    if remove_unreferenced:
+        out_vs, out_fs, _, _ = igl.remove_unreferenced(out_vs, out_fs)
+
     return out_vs, out_fs
 
 
