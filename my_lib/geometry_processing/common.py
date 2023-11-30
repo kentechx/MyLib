@@ -621,7 +621,7 @@ def remove_spikes(vs: np.ndarray, fs: np.ndarray, reserve_boundary=True, spike_t
 
     # smooth the selected vertices
     L, M = robust_laplacian(vs, fs, delaunay=False)
-    Q = igl.harmonic_weights_integrated_from_laplacian_and_mass(L, M, 2)
+    Q = igl.harmonic_integrated_from_laplacian_and_mass(L, M, 2)
 
     a = np.full(len(vs), 0.)  # alpha
     a[vids] = 0.01
@@ -697,7 +697,7 @@ def deform_harmonic(vs: np.ndarray, fs: np.ndarray, handle_id: np.ndarray, handl
     L = -L
     b = handle_id.astype('i4')
     dp_b = handle_co - vs[b]  # (n, 3)
-    dp = igl.harmonic_weights_from_laplacian_and_mass(L, M, b, dp_b, k)
+    dp = igl.harmonic_from_laplacian_and_mass(L, M, b, dp_b, k)
     return dp + vs
 
 
@@ -773,10 +773,10 @@ def mesh_fair_harmonic_global(vs: np.ndarray, fs: np.ndarray, bvids: np.ndarray,
         L = -L
         b = bvids.astype('i4')
         bc = vs[b]
-        return igl.harmonic_weights_from_laplacian_and_mass(L, M, b, bc, k)
+        return igl.harmonic_from_laplacian_and_mass(L, M, b, bc, k)
         # return igl.harmonic_weights(vs, fs, bvids, vs[bvids], k=k)
     else:
-        return igl.harmonic_weights_uniform_laplacian(fs, bvids, vs[bvids], k=k)
+        return igl.harmonic_uniform_laplacian(fs, bvids, vs[bvids], k=k)
 
 
 def mesh_fair_harmonic_local(vs: np.ndarray, fs: np.ndarray, vids: np.ndarray, cot: bool = True, k: int = 1,
@@ -816,7 +816,7 @@ def mesh_fair_laplacian_energy(vs: np.ndarray, fs: np.ndarray, vids: np.ndarray,
         v_attr = vs
 
     L, M = robust_laplacian.mesh_laplacian(vs, fs)
-    Q = igl.harmonic_weights_integrated_from_laplacian_and_mass(-L, M, k)
+    Q = igl.harmonic_integrated_from_laplacian_and_mass(-L, M, k)
 
     a = np.full(len(vs), 0.)  # alpha
     a[vids] = alpha
