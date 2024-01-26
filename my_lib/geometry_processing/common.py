@@ -137,7 +137,7 @@ def get_vertex_neighborhood(fs: np.ndarray, vids: np.ndarray, order: int = 1, vv
 
 
 def get_fids_from_vids(fs: np.ndarray, vids: np.ndarray):
-    selected = np.zeros(fs.shape[0], dtype=bool)
+    selected = np.zeros(max(fs.max(), vids.max()) + 1, dtype=bool)
     selected[vids] = True
     return np.where(np.all(selected[fs], axis=1))[0]
 
