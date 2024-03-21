@@ -65,6 +65,20 @@ class ImageHelper:
         pass
 
     @staticmethod
+    def crop_square_with_mask(img, mask, margin_ratio=0.1):
+        x, y, w, h = cv2.boundingRect(mask.astype('u1'))
+        cv2.imwrite('a.png', mask[y:y + h, x:x + w].astype('u1')*255)
+        if w < h:
+            x -= int((h - w) / 2)
+            w = h
+        elif h < w:
+            y -= int((w - h) / 2)
+            h = w
+        margin = int(margin_ratio * w)
+        x, y, w, h = x - margin, y - margin, w + 2 * margin, h + 2 * margin
+        return img[y:y + h, x:x + w]
+
+    @staticmethod
     def crop_with_mask(img: np.ndarray, mask: np.ndarray, margin=(50, 50)):
         """
         :param img:
