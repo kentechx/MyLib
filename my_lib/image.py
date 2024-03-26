@@ -67,7 +67,6 @@ class ImageHelper:
     @staticmethod
     def crop_square_with_mask(img, mask, margin_ratio=0.1):
         x, y, w, h = cv2.boundingRect(mask.astype('u1'))
-        cv2.imwrite('a.png', mask[y:y + h, x:x + w].astype('u1')*255)
         if w < h:
             x -= int((h - w) / 2)
             w = h
