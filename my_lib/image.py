@@ -65,6 +65,19 @@ class ImageHelper:
         pass
 
     @staticmethod
+    def pad_to_square(img):
+        h, w = img.shape[:2]
+        if img.shape[2] == 3:
+            img = np.concatenate([img, np.full((*img.shape[:2], 1), 255, dtype='u1')], axis=-1)
+        if h > w:
+            pad = (h - w) // 2
+            img = np.pad(img, ((0, 0), (pad, (h - w) - pad), (0, 0)), mode='constant', constant_values=0)
+        elif w > h:
+            pad = (w - h) // 2
+            img = np.pad(img, ((pad, (w - h) - pad), (0, 0), (0, 0)), mode='constant', constant_values=0)
+        return img
+
+    @staticmethod
     def crop_square_with_mask(img, mask, margin_ratio=0.1):
         x, y, w, h = cv2.boundingRect(mask.astype('u1'))
         if w < h:
