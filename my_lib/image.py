@@ -87,6 +87,7 @@ class ImageHelper:
             y -= int((w - h) / 2)
             h = w
         margin = int(margin_ratio * w)
+        margin = min(margin, x, y, img.shape[1] - x - w, img.shape[0] - y - h)
         x, y, w, h = x - margin, y - margin, w + 2 * margin, h + 2 * margin
         return img[y:y + h, x:x + w]
 
